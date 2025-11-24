@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop - Clothes & Makeup</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .filters-section {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .filter-group select {
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+            background: white;
+            transition: border 0.3s;
+        }
+
+        .filter-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+
+        .item-card {
+            background: white;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+
+        .item-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            border-color: #667eea;
+        }
+
+        .item-icon {
+            font-size: 60px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .item-category {
+            display: inline-block;
+            padding: 5px 12px;
+            background: #667eea;
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .item-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .item-description {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .item-price {
+            font-size: 24px;
+            font-weight: 700;
+            color: #764ba2;
+            margin-bottom: 15px;
+        }
+
+        .add-to-cart-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .add-to-cart-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+            font-size: 18px;
+        }
+
+        .results-count {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .wishlist-icon {
+    position: absolute;
+    top: 12px;
+    right: 15px;
+    font-size: 22px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+/* --- Wishlist & Compare UI Improvements --- */
+.item-card {
+    position: relative; /* important for heart icon */
+    overflow: hidden;
+}
+
+/* ❤️ Heart Wishlist Icon */
+.wishlist-btn {
+    position: absolute;
+    top: 12px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 25px;
+    cursor: pointer;
+    transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.wishlist-btn:hover {
+    transform: scale(1.2);
+}
+
+.wishlist-active,
+.wishlist-btn:contains("💖") {
+    color: #ff3b6b;
+}
+
+/* 🗹 Compare Checkbox */
+.compare-checkbox {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    transform: scale(1.3);
+    cursor: pointer;
+}
+.whishlist-items{
+ display: block;                 /* Makes each item appear in a new line */
+    padding: 12px;
+    margin-bottom: 10px;
+    background: #ffffff;
+    border-radius: 8px;
+    font-size: 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+
+}
+
+
+.add-to-cart-btn {
+    border-radius: 25px;
+    font-weight: 700;
+    transition: 0.3s;
+}
+
+.add-to-cart-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-3px);
+}
+
+.btn-compare-select {
+    width: 20%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+}
+
+.btn-showWhishlist {
+     width: 20%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+}
+
+/* Review Section Styling */
+.reviews-section {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.reviews-section h4 {
+    margin-bottom: 8px;
+    font-size: 16px;
+    color: #444;
+}
+
+.reviews-list p {
+    background: #f3f3f3;
+    padding: 8px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+}
+
+.review-rating,
+.review-comment {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+.reviews-section button {
+    width: 100%;
+    padding: 10px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.reviews-section button:hover {
+    background: #1e7f34;
+}
+
+/* Comparison table styling */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+table th {
+    background: #667eea;
+    color: white;
+    padding: 12px;
+    font-size: 16px;
+}
+
+table td {
+    padding: 12px;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    text-align: center;
+}
+
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🛍️ Shop Our Collection</h1>
+
+    <div class="filters-section">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="🔍 Search items..." onkeyup="filterItems()">
+        </div>
+
+        <div class="filter-group">
+            <label>Category</label>
+            <select id="categoryFilter" onchange="filterItems()">
+                <option value="all">All Categories</option>
+                <option value="clothes">Clothes</option>
+                <option value="makeup">Makeup</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>Price Range</label>
+            <select id="priceFilter" onchange="filterItems()">
+                <option value="all">All Prices</option>
+                <option value="0-50">$0 - $50</option>
+                <option value="51-100">$51 - $100</option>
+                <option value="101-200">$101 - $200</option>
+                <option value="201-plus">$201+</option>
+            </select>
+        </div>
+    </div>
+
+    <div style="margin-bottom:10px;">
+        <button class="btn-compare-select" onclick="showComparison()">Compare Selected Products</button>
+        <button class="btn-showWhishlist" onclick="showWishlist()">Show Wishlist</button>
+        <button class="btn-showWhishlist" onclick="goToCart()">View Cart</button>
+    </div>
+
+    <div class="results-count" id="resultsCount"></div>
+    <div class="items-grid" id="itemsGrid"></div>
+</div>
+
+<script>
+  
+
+const items = [
+    { id: 1, name: "Classic Denim Jacket", category: "clothes", price: 79.99, icon: "🧥", description: "Timeless denim jacket perfect for any season" },
+    { id: 2, name: "Elegant Summer Dress", category: "clothes", price: 59.99, icon: "👗", description: "Light and breezy dress for warm days" },
+    { id: 3, name: "Designer T-Shirt", category: "clothes", price: 29.99, icon: "👕", description: "Premium cotton t-shirt with modern design" },
+    { id: 4, name: "Formal Blazer", category: "clothes", price: 149.99, icon: "🧥", description: "Professional blazer for business occasions" },
+    { id: 5, name: "Casual Jeans", category: "clothes", price: 69.99, icon: "👖", description: "Comfortable slim-fit jeans" },
+    { id: 6, name: "Winter Sweater", category: "clothes", price: 89.99, icon: "🧶", description: "Cozy wool blend sweater" },
+    { id: 7, name: "Athletic Shorts", category: "clothes", price: 34.99, icon: "🩳", description: "Breathable workout shorts" },
+    { id: 8, name: "Evening Gown", category: "clothes", price: 249.99, icon: "👗", description: "Stunning gown for special events" },
+    { id: 9, name: "Luxury Lipstick Set", category: "makeup", price: 45.99, icon: "💄", description: "Collection of 5 vibrant lipstick shades" },
+    { id: 10, name: "Foundation Kit", category: "makeup", price: 54.99, icon: "💅", description: "Full coverage foundation with primer" },
+    { id: 11, name: "Eye Shadow Palette", category: "makeup", price: 39.99, icon: "👁️", description: "20 stunning eyeshadow colors" },
+    { id: 12, name: "Mascara Duo Pack", category: "makeup", price: 24.99, icon: "👀", description: "Volumizing and lengthening mascara" },
+    { id: 13, name: "Blush & Bronzer Set", category: "makeup", price: 32.99, icon: "✨", description: "Natural glow with blush and bronzer" },
+    { id: 14, name: "Makeup Brush Collection", category: "makeup", price: 67.99, icon: "🖌️", description: "Professional 12-piece brush set" },
+    { id: 15, name: "Nail Polish Bundle", category: "makeup", price: 28.99, icon: "💅", description: "10 trendy nail polish colors" },
+    { id: 16, name: "Skincare & Makeup Combo", category: "makeup", price: 89.99, icon: "🧴", description: "Complete skincare and makeup routine" }
+];
+
+let compareList = [];
+let wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
+const allReviews = {};
+
+function displayItems(itemsToShow) {
+    const grid = document.getElementById('itemsGrid');
+    const resultsCount = document.getElementById('resultsCount');
+    resultsCount.textContent = `Showing ${itemsToShow.length} item(s)`;
+
+    if (itemsToShow.length === 0) {
+        grid.innerHTML = '<div class="no-results">No items found matching your criteria</div>';
+        return;
+    }
+
+    grid.innerHTML = itemsToShow.map(item => `
+        <div class="item-card">
+            <div class="item-icon">${item.icon}</div>
+            <span class="item-category">${item.category}</span>
+            <div class="item-name">${item.name}</div>
+            <div class="item-description">${item.description}</div>
+            <div class="item-price">${item.price.toFixed(2)} Rs</div>
+
+            <input type="checkbox" class="compare-checkbox" data-id="${item.id}"> Compare
+            <button class="add-to-cart-btn" onclick="addToCart(${item.id})">Add to Cart</button>
+            <button class="wishlist-btn" data-id="${item.id}">${wishlist.includes(item.id.toString()) ? '💖' : '🤍'}</button>
+
+            <div class="reviews-section" id="reviews-${item.id}">
+                <h4>Reviews</h4>
+                <div class="reviews-list"></div>
+                <select class="review-rating">
+                    <option value="">Rate</option>
+                    <option value="1">1⭐</option>
+                    <option value="2">2⭐</option>
+                    <option value="3">3⭐</option>
+                    <option value="4">4⭐</option>
+                    <option value="5">5⭐</option>
+                </select>
+                <input type="text" class="review-comment" placeholder="Write a comment">
+                <button onclick="submitReview(${item.id}, this)">Submit</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function filterItems() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const categoryFilter = document.getElementById('categoryFilter').value;
+    const priceFilter = document.getElementById('priceFilter').value;
+
+    let filtered = items.filter(item => {
+        const matchesSearch = item.name.toLowerCase().includes(searchTerm) || item.description.toLowerCase().includes(searchTerm);
+        const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
+        let matchesPrice = true;
+        if (priceFilter !== 'all') {
+            const price = item.price;
+            if (priceFilter === '0-50') matchesPrice = price <= 50;
+            else if (priceFilter === '51-100') matchesPrice = price >= 51 && price <= 100;
+            else if (priceFilter === '101-200') matchesPrice = price >= 101 && price <= 200;
+            else if (priceFilter === '201-plus') matchesPrice = price >= 201;
+        }
+        return matchesSearch && matchesCategory && matchesPrice;
+    });
+
+    displayItems(filtered);
+}
+  let cart = JSON.parse(localStorage.getItem('cart')) || [];
+function addToCart(itemId) {
+    const item = items.find(i => i.id === itemId);
+
+    const existing = cart.find(i => i.id === itemId);
+    if (existing) {
+        existing.quantity += 1;
+    } else {
+        cart.push({ ...item, quantity: 1 });
+    }
+
+   
+    localStorage.setItem("cart", JSON.stringify(cart));
+
+    alert(`🛒 "${item.name}" added to cart!`);
+}
+
+
+
+
+
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('wishlist-btn')) {
+        const id = e.target.dataset.id;
+        if (!wishlist.includes(id)) wishlist.push(id);
+        else wishlist = wishlist.filter(i => i !== id);
+        localStorage.setItem('wishlist', JSON.stringify(wishlist));
+        displayItems(items); // Refresh icons
+    }
+});
+
+function showWishlist() {
+    if (wishlist.length === 0) { 
+        alert('Wishlist is empty!'); 
+        return; 
+    }
+
+    let html = '<h3>My Wishlist</h3><div id="wishlistContainer">';
+
+    wishlist.forEach(id => {
+        const p = items.find(i => i.id == id);
+        html += `
+            <div class="whishlist-items">
+                ${p.icon} ${p.name} - ${p.price} Rs
+            </div>
+        `;
+    });
+
+    html += '</div>';
+
+    document.getElementById('itemsGrid').innerHTML = html;
+}
+
+
+
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('compare-checkbox')) {
+        const id = e.target.dataset.id;
+        if (e.target.checked) {
+            if (compareList.length < 4) compareList.push(id);
+            else { e.target.checked = false; alert('Max 4 products for comparison!'); }
+        } else {
+            compareList = compareList.filter(i => i !== id);
+        }
+    }
+});
+
+function showComparison() {
+    if (compareList.length === 0) { alert('Select products to compare!'); return; }
+    let html = '<h3>Comparison Table</h3><table><tr><th>Feature</th>';
+    compareList.forEach(id => { const p = items.find(i => i.id==id); html += `<th>${p.name}</th>`; });
+    html += '</tr>';
+    html += '<tr><td>Price</td>' + compareList.map(id => `<td>${items.find(i => i.id==id).price} Rs</td>`).join('') + '</tr>';
+     html += '<tr><td>Descritpion</td>' + compareList.map(id => `<td>${items.find(i => i.id==id).description} Rs</td>`).join('') + '</tr>';
+    html += '<tr><td>Category</td>' + compareList.map(id => `<td>${items.find(i => i.id==id).category}</td>`).join('') + '</tr>';
+    html += '</table>';
+    document.getElementById('itemsGrid').innerHTML = html;
+}
+
+
+function submitReview(itemId, btn) {
+    const card = btn.parentElement;
+    const rating = card.querySelector('.review-rating').value;
+    const comment = card.querySelector('.review-comment').value;
+    if (!rating || !comment) { alert('Rating & comment required!'); return; }
+    if (!allReviews[itemId]) allReviews[itemId] = [];
+    allReviews[itemId].push({ user: 'User1', rating, comment });
+    displayReviews(itemId);
+}
+
+function displayReviews(itemId) {
+    const list = document.querySelector(`#reviews-${itemId} .reviews-list`);
+    list.innerHTML = allReviews[itemId].map(r => `<p><strong>${r.user}</strong> - ${r.rating}⭐: ${r.comment}</p>`).join('');
+}
+function goToCart() {
+    // Save current cart to localStorage
+    localStorage.setItem("cart", JSON.stringify(cart));
+
+    // Navigate to the cart page
+    window.location.href = "cart.html";  // make sure your file is named cart.html
+}
+
+
+
+displayItems(items);
+</script>
+</body>
+</html>
