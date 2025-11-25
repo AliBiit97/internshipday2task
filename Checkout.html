@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Checkout</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f2f2f2;
+            padding: 40px;
+        }
+
+        .checkout-container {
+            max-width: 700px;
+            margin: auto;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        form input, form textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+
+        .order-summary {
+            background: #fafafa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .total {
+            text-align: right;
+            font-weight: bold;
+            font-size: 18px;
+            margin-top: 10px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+            margin-top: 20px;
+        }
+
+        .submit-btn:hover {
+            background: #0056c7;
+        }
+
+        .error {
+            color: red;
+            font-size: 14px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="checkout-container">
+    <h2>Checkout</h2>
+
+    <form id="checkoutForm">
+        <label for="name">Name</label>
+        <input type="text" id="name" placeholder="Your Name" required>
+        <div id="nameError" class="error"></div>
+
+        <label for="phone">Phone</label>
+        <input type="tel" id="phone" placeholder="e.g. 0300XXXXXXX" required>
+        <div id="phoneError" class="error"></div>
+
+        <label for="address">Address</label>
+        <textarea id="address" placeholder="Delivery Address" rows="4" required></textarea>
+        <div id="addressError" class="error"></div>
+
+        <div class="order-summary" id="orderSummary">
+            <h3>Order Summary</h3>
+          
+        </div>
+
+        <div class="total" id="totalAmount"></div>
+
+        <button type="submit" class="submit-btn">Complete Order</button>
+    </form>
+</div>
+
+<script>
+let cart = JSON.parse(localStorage.getItem("cart")) || [];
+
+function displayOrderSummary() {
+    const summary = document.getElementById("orderSummary");
+    const totalDiv = document.getElementById("totalAmount");
+
+    if(cart.length === 0){
+        summary.innerHTML = "<p>Your cart is empty!</p>";
+        totalDiv.textContent = "";
+        return;
+    }
+
+    let html = "";
+    let total = 0;
+
+    cart.forEach(item => {
+        const subtotal = item.price * item.quantity;
+        total += subtotal;
+
+        html += `
+            <div class="order-item">
+                <span>${item.name} (x${item.quantity})</span>
+                <span>${subtotal.toFixed(2)} Rs</span>
+            </div>
+        `;
+    });
+
+    summary.innerHTML = html;
+    totalDiv.textContent = "Total Amount: " + total.toFixed(2) + " Rs";
+}
+
+
+document.getElementById("checkoutForm").addEventListener("submit", function(e){
+    e.preventDefault();
+
+    let valid = true;
+
+    const name = document.getElementById("name").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+    const address = document.getElementById("address").value.trim();
+
+    // Clear previous errors
+    document.getElementById("nameError").textContent = "";
+    document.getElementById("phoneError").textContent = "";
+    document.getElementById("addressError").textContent = "";
+
+    if(name === ""){
+        document.getElementById("nameError").textContent = "Name is required";
+        valid = false;
+    }
+
+    if(phone === "" || !/^\d{10,12}$/.test(phone)){
+        document.getElementById("phoneError").textContent = "Valid phone number is required";
+        valid = false;
+    }
+
+    if(address === ""){
+        document.getElementById("addressError").textContent = "Address is required";
+        valid = false;
+    }
+
+    if(valid){
+        alert("Form is valid! (Payment not implemented)");
+        // Optionally you can clear the cart here
+        // localStorage.removeItem("cart");
+    }
+});
+
+displayOrderSummary();
+</script>
+
+</body>
+</html>

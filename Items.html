@@ -12,332 +12,520 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(255,255,255,0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 1;
         }
 
         h1 {
             text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-            font-size: 2.5em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 40px;
+            font-size: 3em;
+            font-weight: 800;
+            letter-spacing: -1px;
+            animation: fadeInDown 0.6s ease;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .filters-section {
             display: flex;
-            gap: 15px;
-            margin-bottom: 30px;
+            gap: 20px;
+            margin-bottom: 35px;
             flex-wrap: wrap;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
+            padding: 30px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 16px;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
+            animation: fadeIn 0.8s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .search-box {
             flex: 1;
-            min-width: 250px;
+            min-width: 300px;
         }
 
         .search-box input {
             width: 100%;
-            padding: 12px 20px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+            padding: 16px 24px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
             font-size: 16px;
-            transition: border 0.3s;
+            transition: all 0.3s ease;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
 
         .search-box input:focus {
             outline: none;
             border-color: #667eea;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
         }
+
+        
 
         .filter-group {
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 8px;
         }
 
         .filter-group label {
-            font-weight: 600;
-            color: #555;
-            font-size: 14px;
+            font-weight: 700;
+            color: #333;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .filter-group select {
-            padding: 10px 15px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+            padding: 14px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
             font-size: 15px;
             cursor: pointer;
             background: white;
-            transition: border 0.3s;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .filter-group select:hover {
+            border-color: #667eea;
         }
 
         .filter-group select:focus {
             outline: none;
             border-color: #667eea;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .btn-action {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-action::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-action:hover::before {
+            left: 100%;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-action:active {
+            transform: translateY(0);
         }
 
         .items-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 25px;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
             margin-top: 20px;
         }
 
         .item-card {
             background: white;
-            border: 2px solid #eee;
-            border-radius: 12px;
-            padding: 20px;
-            transition: transform 0.3s, box-shadow 0.3s;
+            border: 2px solid #f0f0f0;
+            border-radius: 20px;
+            padding: 25px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .item-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .item-card:hover::before {
+            opacity: 1;
         }
 
         .item-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            transform: translateY(-8px);
+            box-shadow: 0 12px 32px rgba(102, 126, 234, 0.25);
             border-color: #667eea;
         }
 
         .item-icon {
-            font-size: 60px;
+            font-size: 70px;
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 18px;
+            transition: transform 0.3s ease;
+        }
+
+        .item-card:hover .item-icon {
+            transform: scale(1.1) rotate(5deg);
         }
 
         .item-category {
             display: inline-block;
-            padding: 5px 12px;
-            background: #667eea;
+            padding: 6px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 10px;
+            border-radius: 25px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
         }
 
         .item-name {
-            font-size: 20px;
-            font-weight: 700;
-            color: #333;
-            margin-bottom: 8px;
+            font-size: 22px;
+            font-weight: 800;
+            color: #222;
+            margin-bottom: 10px;
+            line-height: 1.3;
         }
 
         .item-description {
             color: #666;
             font-size: 14px;
-            margin-bottom: 15px;
-            line-height: 1.5;
+            margin-bottom: 18px;
+            line-height: 1.6;
         }
 
         .item-price {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 18px;
+        }
+
+        .compare-checkbox {
+            position: absolute;
+            top: 18px;
+            left: 18px;
+            transform: scale(1.4);
+            cursor: pointer;
+            accent-color: #667eea;
+            z-index: 10;
+        }
+
+        .compare-label {
+            position: absolute;
+            top: 22px;
+            left: 42px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #667eea;
+            background: white;
+            padding: 2px 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            pointer-events: none;
+        }
+
+        .wishlist-btn {
+            position: absolute;
+            top: 15px;
+            right: 18px;
+            background: white;
+            border: 2px solid #f0f0f0;
             font-size: 24px;
-            font-weight: 700;
-            color: #764ba2;
-            margin-bottom: 15px;
+            cursor: pointer;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .wishlist-btn:hover {
+            transform: scale(1.15);
+            box-shadow: 0 4px 16px rgba(255, 59, 107, 0.3);
+            border-color: #ff3b6b;
         }
 
         .add-to-cart-btn {
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 16px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            margin-bottom: 12px;
         }
 
         .add-to-cart-btn:hover {
-            transform: scale(1.05);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .add-to-cart-btn:active {
+            transform: translateY(0);
+        }
+
+        .reviews-section {
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .reviews-section h4 {
+            margin-bottom: 12px;
+            font-size: 16px;
+            color: #333;
+            font-weight: 700;
+        }
+
+        .reviews-list {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+        }
+
+        .reviews-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .reviews-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .reviews-list::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 10px;
+        }
+
+        .reviews-list p {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .review-rating,
+        .review-comment {
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border 0.3s ease;
+        }
+
+        .review-rating:focus,
+        .review-comment:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .reviews-section button {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 13px;
+        }
+
+        .reviews-section button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
         .no-results {
             text-align: center;
-            padding: 60px 20px;
+            padding: 80px 20px;
             color: #999;
             font-size: 18px;
+            font-weight: 500;
         }
 
         .results-count {
             color: #666;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             font-size: 16px;
+            font-weight: 600;
         }
-        .wishlist-icon {
-    position: absolute;
-    top: 12px;
-    right: 15px;
-    font-size: 22px;
-    cursor: pointer;
-    transition: 0.3s;
-}
 
-/* --- Wishlist & Compare UI Improvements --- */
-.item-card {
-    position: relative; /* important for heart icon */
-    overflow: hidden;
-}
+        .wishlist-items {
+            display: block;
+            padding: 16px 20px;
+            margin-bottom: 14px;
+            background: white;
+            border-radius: 12px;
+            font-size: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            border: 2px solid #f0f0f0;
+            transition: all 0.3s ease;
+        }
 
-/* ❤️ Heart Wishlist Icon */
-.wishlist-btn {
-    position: absolute;
-    top: 12px;
-    right: 15px;
-    background: none;
-    border: none;
-    font-size: 25px;
-    cursor: pointer;
-    transition: transform 0.3s ease, color 0.3s ease;
-}
+        .wishlist-items:hover {
+            border-color: #667eea;
+            transform: translateX(5px);
+        }
 
-.wishlist-btn:hover {
-    transform: scale(1.2);
-}
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
 
-.wishlist-active,
-.wishlist-btn:contains("💖") {
-    color: #ff3b6b;
-}
-
-/* 🗹 Compare Checkbox */
-.compare-checkbox {
-    position: absolute;
-    top: 10px;
-    left: 12px;
-    transform: scale(1.3);
-    cursor: pointer;
-}
-.whishlist-items{
- display: block;                 /* Makes each item appear in a new line */
-    padding: 12px;
-    margin-bottom: 10px;
-    background: #ffffff;
-    border-radius: 8px;
-    font-size: 16px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-
-}
-
-
-.add-to-cart-btn {
-    border-radius: 25px;
-    font-weight: 700;
-    transition: 0.3s;
-}
-
-.add-to-cart-btn:hover {
-    opacity: 0.9;
-    transform: translateY(-3px);
-}
-
-.btn-compare-select {
-    width: 20%;
-            padding: 12px;
+        table th {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s;
-}
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 700;
+            text-align: left;
+        }
 
-.btn-showWhishlist {
-     width: 20%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s;
-}
+        table td {
+            padding: 16px;
+            background: white;
+            border-bottom: 1px solid #f0f0f0;
+            text-align: left;
+            font-size: 14px;
+        }
 
-/* Review Section Styling */
-.reviews-section {
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid #eee;
-}
+        table tr:last-child td {
+            border-bottom: none;
+        }
 
-.reviews-section h4 {
-    margin-bottom: 8px;
-    font-size: 16px;
-    color: #444;
-}
+        table tr:hover td {
+            background: #f8f9fa;
+        }
 
-.reviews-list p {
-    background: #f3f3f3;
-    padding: 8px;
-    border-radius: 6px;
-    margin-bottom: 6px;
-}
+        @media (max-width: 768px) {
+            .container {
+                padding: 25px;
+            }
 
-.review-rating,
-.review-comment {
-    width: 100%;
-    padding: 8px;
-    margin-bottom: 8px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-}
+            h1 {
+                font-size: 2em;
+            }
 
-.reviews-section button {
-    width: 100%;
-    padding: 10px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
-    border-radius: 8px;
-    color: white;
-    font-weight: bold;
-    cursor: pointer;
-    transition: 0.3s;
-}
+            .items-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
 
-.reviews-section button:hover {
-    background: #1e7f34;
-}
+            .filters-section {
+                padding: 20px;
+            }
 
-/* Comparison table styling */
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-}
+            .action-buttons {
+                flex-direction: column;
+            }
 
-table th {
-    background: #667eea;
-    color: white;
-    padding: 12px;
-    font-size: 16px;
-}
-
-table td {
-    padding: 12px;
-    background: #f8f9fa;
-    border: 1px solid #ddd;
-    text-align: center;
-}
-
+            .btn-action {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -362,18 +550,18 @@ table td {
             <label>Price Range</label>
             <select id="priceFilter" onchange="filterItems()">
                 <option value="all">All Prices</option>
-                <option value="0-50">$0 - $50</option>
-                <option value="51-100">$51 - $100</option>
-                <option value="101-200">$101 - $200</option>
-                <option value="201-plus">$201+</option>
+                <option value="0-50">0 - 50</option>
+                <option value="51-100">51 - 100</option>
+                <option value="101-200">101 - 200</option>
+                <option value="201-plus">201+</option>
             </select>
         </div>
     </div>
 
-    <div style="margin-bottom:10px;">
-        <button class="btn-compare-select" onclick="showComparison()">Compare Selected Products</button>
-        <button class="btn-showWhishlist" onclick="showWishlist()">Show Wishlist</button>
-        <button class="btn-showWhishlist" onclick="goToCart()">View Cart</button>
+    <div class="action-buttons">
+        <button class="btn-action" onclick="showComparison()">📊 Compare Selected Products</button>
+        <button class="btn-action" onclick="showWishlist()">💖 Show Wishlist</button>
+        <button class="btn-action" onclick="goToCart()">🛒 View Cart</button>
     </div>
 
     <div class="results-count" id="resultsCount"></div>
@@ -381,8 +569,6 @@ table td {
 </div>
 
 <script>
-  
-
 const items = [
     { id: 1, name: "Classic Denim Jacket", category: "clothes", price: 79.99, icon: "🧥", description: "Timeless denim jacket perfect for any season" },
     { id: 2, name: "Elegant Summer Dress", category: "clothes", price: 59.99, icon: "👗", description: "Light and breezy dress for warm days" },
@@ -418,29 +604,31 @@ function displayItems(itemsToShow) {
 
     grid.innerHTML = itemsToShow.map(item => `
         <div class="item-card">
+            <input type="checkbox" class="compare-checkbox" data-id="${item.id}" id="compare-${item.id}">
+            <label for="compare-${item.id}" class="compare-label">Compare</label>
+            <button class="wishlist-btn" data-id="${item.id}">${wishlist.includes(item.id.toString()) ? '💖' : '🤍'}</button>
+            
             <div class="item-icon">${item.icon}</div>
             <span class="item-category">${item.category}</span>
             <div class="item-name">${item.name}</div>
             <div class="item-description">${item.description}</div>
             <div class="item-price">${item.price.toFixed(2)} Rs</div>
 
-            <input type="checkbox" class="compare-checkbox" data-id="${item.id}"> Compare
             <button class="add-to-cart-btn" onclick="addToCart(${item.id})">Add to Cart</button>
-            <button class="wishlist-btn" data-id="${item.id}">${wishlist.includes(item.id.toString()) ? '💖' : '🤍'}</button>
 
             <div class="reviews-section" id="reviews-${item.id}">
-                <h4>Reviews</h4>
+                <h4>⭐ Reviews</h4>
                 <div class="reviews-list"></div>
                 <select class="review-rating">
-                    <option value="">Rate</option>
+                    <option value="">Rate this product</option>
                     <option value="1">1⭐</option>
                     <option value="2">2⭐</option>
                     <option value="3">3⭐</option>
                     <option value="4">4⭐</option>
                     <option value="5">5⭐</option>
                 </select>
-                <input type="text" class="review-comment" placeholder="Write a comment">
-                <button onclick="submitReview(${item.id}, this)">Submit</button>
+                <input type="text" class="review-comment" placeholder="Write your review...">
+                <button onclick="submitReview(${item.id}, this)">Submit Review</button>
             </div>
         </div>
     `).join('');
@@ -467,8 +655,9 @@ function filterItems() {
 
     displayItems(filtered);
 }
-  let cart = JSON.parse(localStorage.getItem('cart')) || [];
+
 function addToCart(itemId) {
+    let cart = JSON.parse(localStorage.getItem('cart')) || [];
     const item = items.find(i => i.id === itemId);
 
     const existing = cart.find(i => i.id === itemId);
@@ -478,15 +667,9 @@ function addToCart(itemId) {
         cart.push({ ...item, quantity: 1 });
     }
 
-   
     localStorage.setItem("cart", JSON.stringify(cart));
-
     alert(`🛒 "${item.name}" added to cart!`);
 }
-
-
-
-
 
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('wishlist-btn')) {
@@ -494,7 +677,7 @@ document.addEventListener('click', function(e) {
         if (!wishlist.includes(id)) wishlist.push(id);
         else wishlist = wishlist.filter(i => i !== id);
         localStorage.setItem('wishlist', JSON.stringify(wishlist));
-        displayItems(items); // Refresh icons
+        displayItems(items);
     }
 });
 
@@ -504,23 +687,20 @@ function showWishlist() {
         return; 
     }
 
-    let html = '<h3>My Wishlist</h3><div id="wishlistContainer">';
+    let html = '<h3>💖 My Wishlist</h3><div id="wishlistContainer">';
 
     wishlist.forEach(id => {
         const p = items.find(i => i.id == id);
         html += `
-            <div class="whishlist-items">
+            <div class="wishlist-items">
                 ${p.icon} ${p.name} - ${p.price} Rs
             </div>
         `;
     });
 
     html += '</div>';
-
     document.getElementById('itemsGrid').innerHTML = html;
 }
-
-
 
 document.addEventListener('change', function(e) {
     if (e.target.classList.contains('compare-checkbox')) {
@@ -536,16 +716,15 @@ document.addEventListener('change', function(e) {
 
 function showComparison() {
     if (compareList.length === 0) { alert('Select products to compare!'); return; }
-    let html = '<h3>Comparison Table</h3><table><tr><th>Feature</th>';
+    let html = '<h3>📊 Comparison Table</h3><table><tr><th>Feature</th>';
     compareList.forEach(id => { const p = items.find(i => i.id==id); html += `<th>${p.name}</th>`; });
     html += '</tr>';
-    html += '<tr><td>Price</td>' + compareList.map(id => `<td>${items.find(i => i.id==id).price} Rs</td>`).join('') + '</tr>';
-     html += '<tr><td>Descritpion</td>' + compareList.map(id => `<td>${items.find(i => i.id==id).description} Rs</td>`).join('') + '</tr>';
-    html += '<tr><td>Category</td>' + compareList.map(id => `<td>${items.find(i => i.id==id).category}</td>`).join('') + '</tr>';
+    html += '<tr><td><strong>Price</strong></td>' + compareList.map(id => `<td>${items.find(i => i.id==id).price} Rs</td>`).join('') + '</tr>';
+    html += '<tr><td><strong>Description</strong></td>' + compareList.map(id => `<td>${items.find(i => i.id==id).description}</td>`).join('') + '</tr>';
+    html += '<tr><td><strong>Category</strong></td>' + compareList.map(id => `<td>${items.find(i => i.id==id).category}</td>`).join('') + '</tr>';
     html += '</table>';
     document.getElementById('itemsGrid').innerHTML = html;
 }
-
 
 function submitReview(itemId, btn) {
     const card = btn.parentElement;
@@ -554,6 +733,8 @@ function submitReview(itemId, btn) {
     if (!rating || !comment) { alert('Rating & comment required!'); return; }
     if (!allReviews[itemId]) allReviews[itemId] = [];
     allReviews[itemId].push({ user: 'User1', rating, comment });
+    card.querySelector('.review-comment').value = '';
+    card.querySelector('.review-rating').value = '';
     displayReviews(itemId);
 }
 
@@ -561,15 +742,10 @@ function displayReviews(itemId) {
     const list = document.querySelector(`#reviews-${itemId} .reviews-list`);
     list.innerHTML = allReviews[itemId].map(r => `<p><strong>${r.user}</strong> - ${r.rating}⭐: ${r.comment}</p>`).join('');
 }
+
 function goToCart() {
-    // Save current cart to localStorage
-    localStorage.setItem("cart", JSON.stringify(cart));
-
-    // Navigate to the cart page
-    window.location.href = "cart.html";  // make sure your file is named cart.html
+    window.location.href = "cart.html";
 }
-
-
 
 displayItems(items);
 </script>

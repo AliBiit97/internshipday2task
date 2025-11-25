@@ -53,9 +53,22 @@
             margin-top: 5px;
         }
 
-        .item-quantity {
-            font-size: 16px;
-            margin-top: 5px;
+        .qty-controls {
+            margin-top: 10px;
+        }
+
+        .qty-btn {
+            background: #007bff;
+            border: none;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+
+        .qty-btn:hover {
+            background: #0056c7;
         }
 
         .remove-btn {
@@ -89,23 +102,27 @@
             font-size: 18px;
             margin-top: 20px;
         }
-
-        .submit-btn:hover {
-            background: #0056c7;
-        }
     </style>
 </head>
 <body>
 
     <div class="cart-container">
-        <h2>My Cart</h2>
+        <h2>My Cart (<span id="badge"></span>)</h2>
+
         <div id="cartItems"></div>
         <div class="total-box" id="totalPrice"></div>
-        <button class="submit-btn" onclick="submitOrder()">Submit Order</button>
+
+        <button class="submit-btn" onclick="goToCheckout()">Check Out</button>
     </div>
 
 <script>
 let cart = JSON.parse(localStorage.getItem("cart")) || [];
+
+
+function updateBadge() {
+    document.getElementById("badge").textContent = cart.length;
+}
+
 
 function displayCart() {
     const container = document.getElementById("cartItems");
@@ -114,6 +131,7 @@ function displayCart() {
     if (cart.length === 0) {
         container.innerHTML = "<p>Your cart is empty!</p>";
         totalBox.textContent = "";
+        updateBadge();
         return;
     }
 
@@ -127,12 +145,20 @@ function displayCart() {
         html += `
             <div class="cart-item">
                 <div class="item-icon">${item.icon}</div>
+
                 <div class="item-details">
                     <div class="item-name">${item.name}</div>
-                    <div class="item-price">${itemTotal.toFixed(2)} Rs (${item.price} Rs each)</div>
-                    <div class="item-quantity">Quantity: ${item.quantity}</div>
+                    <div class="item-price">Subtotal: ${itemTotal.toFixed(2)} Rs (${item.price} Rs each)</div>
+
+                    <div class="qty-controls">
+                        <button class="qty-btn" onclick="decreaseQty(${index})">-</button>
+                        <span>${item.quantity}</span>
+                        <button class="qty-btn" onclick="increaseQty(${index})">+</button>
+                    </div>
+
                     <div class="item-category">Category: ${item.category}</div>
                 </div>
+
                 <button class="remove-btn" onclick="removeItem(${index})">Delete</button>
             </div>
         `;
@@ -140,7 +166,28 @@ function displayCart() {
 
     container.innerHTML = html;
     totalBox.textContent = "Total: " + total.toFixed(2) + " Rs";
+
+    updateBadge();
 }
+
+
+function increaseQty(index) {
+    cart[index].quantity++;
+    localStorage.setItem("cart", JSON.stringify(cart));
+    displayCart();
+}
+
+
+function decreaseQty(index) {
+    if (cart[index].quantity > 1) {
+        cart[index].quantity--;
+    } else {
+        cart.splice(index, 1);  // remove item if qty reaches 0
+    }
+    localStorage.setItem("cart", JSON.stringify(cart));
+    displayCart();
+}
+
 
 function removeItem(index) {
     cart.splice(index, 1);
@@ -148,19 +195,19 @@ function removeItem(index) {
     displayCart();
 }
 
-function submitOrder() {
-    if (cart.length === 0) {
+
+function goToCheckout() {
+    if(cart.length === 0){
         alert("Your cart is empty!");
         return;
     }
-
-    alert("Order submitted successfully! (Mock functionality)");
-    cart = [];
-    localStorage.setItem("cart", JSON.stringify(cart));
-    displayCart();
+    // Navigate to checkout page
+    window.location.href = "Checkout.html";
 }
 
+
 displayCart();
+updateBadge();
 </script>
 
 </body>
