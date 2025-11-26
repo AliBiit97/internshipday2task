@@ -307,9 +307,9 @@
             <li onclick="window.location.href='admin_manage_mc.php'">🏭 Manufacturers</li>
             <li onclick="window.location.href='admin_manage_mc.php'">📂 Categories</li>
             <li onclick="window.location.href='attributes.php'">🏷️ Attributes</li>
-            <li onclick="showSection('stock')">📊 Stock</li>
-            <li onclick="showSection('discounts')">💰 Discounts</li>
-            <li onclick="showSection('users')">👥 Users</li>
+            <li onclick="window.location.href='manage_stock.php'">📊 Stock</li>
+            <li onclick="window.location.href='manage_discount.php'">💰 Discounts</li>
+            <li onclick="window.location.href='manage_users.php'">👥 Users</li>
             <li onclick="logout()">🚪 Logout</li>
         </ul>
     </div>
@@ -366,7 +366,7 @@
             <h1>Discount Management</h1>
             <button class="btn btn-primary" onclick="openModal()">➕ Create New Discount</button>
             <div class="discount-grid" id="discountGrid">
-                <!-- Discounts will be loaded here -->
+     
             </div>
         </div>
 
@@ -376,7 +376,7 @@
         </div>
     </div>
 
-    <!-- Modal for creating/editing discounts -->
+
     <div id="discountModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">

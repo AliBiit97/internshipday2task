@@ -5,9 +5,14 @@ if(!isset($_SESSION['user_id'])) {
     exit;
 }
 
+// Add database connection
+include 'db.php'; // Make sure you have your database connection file
 
 $username = $_SESSION['username'] ?? 'User';
 $email = $_SESSION['email'] ?? 'user@example.com';
+
+// Fetch categories from database
+$categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DESC");
 ?>
 
 <!DOCTYPE html>
@@ -153,7 +158,12 @@ $email = $_SESSION['email'] ?? 'user@example.com';
             font-size: 0.9rem;
         }
 
-     
+        .no-categories {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -231,7 +241,6 @@ $email = $_SESSION['email'] ?? 'user@example.com';
             color: var(--text-secondary);
         }
 
-       
         .toggle-switch {
             position: relative;
             width: 50px;
@@ -350,27 +359,35 @@ $email = $_SESSION['email'] ?? 'user@example.com';
             <p>Here's what's happening with your account today.</p>
         </div>
 
-    <div class="cards-section">
-    <h3>Categories</h3>
-    <div class="cards-container">
-        <div class="card" onclick="window.location.href='Items.html?category=clothes'">
-            <div class="card-icon">👗</div>
-            <h4>Clothes</h4>
-            <p>Browse our collection of fashionable clothing</p>
+        <div class="cards-section">
+            <h3>Categories</h3>
+            <div class="cards-container">
+                <?php
+                if(mysqli_num_rows($categories_query) > 0) {
+                    while($category = mysqli_fetch_assoc($categories_query)) {
+                        $category_id = $category['id'];
+                        $category_name = htmlspecialchars($category['name']);
+                        $category_description = htmlspecialchars($category['description'] ?? 'Explore our ' . $category['name'] . ' collection');
+                        $category_icon = htmlspecialchars($category['icon'] ?? '📦');
+                        ?>
+                        <div class="card" onclick="window.location.href='Items.php?category_id=<?php echo $category_id; ?>'">
+                            <div class="card-icon"><?php echo $category_icon; ?></div>
+                            <h4><?php echo $category_name; ?></h4>
+                            <p><?php echo $category_description; ?></p>
+                        </div>
+                        <?php
+                    }
+                } else {
+                    echo '<div class="no-categories">
+                            <p>No categories available at the moment.</p>
+                          </div>';
+                }
+                ?>
+            </div>
         </div>
-
-        <div class="card" onclick="window.location.href='Items.html?category=makeup'">
-            <div class="card-icon">💄</div>
-            <h4>Makeup</h4>
-            <p>Explore beauty products and cosmetics</p>
-        </div>
-
-    </div>
-</div>
-</div>
     </div>
 
-  
+    <!-- Settings Modal -->
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -404,7 +421,7 @@ $email = $_SESSION['email'] ?? 'user@example.com';
         </div>
     </div>
 
-    
+    <!-- Profile Modal -->
     <div id="profileModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -437,13 +454,13 @@ $email = $_SESSION['email'] ?? 'user@example.com';
     </div>
 
     <script>
-        
+        // Load theme preference
         if(localStorage.getItem('theme') === 'dark') {
             document.body.classList.add('dark-theme');
             document.getElementById('themeToggle').checked = true;
         }
 
-       
+        // Load notification preference
         if(localStorage.getItem('notifications') === 'false') {
             document.getElementById('notificationToggle').checked = false;
         }
@@ -471,7 +488,7 @@ $email = $_SESSION['email'] ?? 'user@example.com';
             }
         }
 
-        
+        // Save notification settings
         document.getElementById('notificationToggle').addEventListener('change', function() {
             localStorage.setItem('notifications', this.checked);
             alert('Notification settings saved!');
@@ -483,7 +500,7 @@ $email = $_SESSION['email'] ?? 'user@example.com';
             }
         }
 
-    
+        // Close modal when clicking outside
         window.onclick = function(event) {
             if(event.target.classList.contains('modal')) {
                 event.target.classList.remove('active');

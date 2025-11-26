@@ -62,6 +62,7 @@ if(isset($_POST['update_product'])) {
                         $stmt2 = $conn->prepare("INSERT INTO product_attributes (product_id, attribute_id, value) VALUES (?, ?, ?)");
                         $stmt2->bind_param("iis", $product_id, $attr_id, $value);
                         $stmt2->execute();
+                        
                     }
                 }
             }
@@ -209,7 +210,7 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
             to { opacity: 1; transform: translateY(0); }
         }
         
-        /* Table Styles */
+
         .table-container {
             overflow-x: auto;
             border-radius: 10px;
@@ -291,7 +292,7 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
             transform: translateY(-2px);
         }
         
-        /* Modal Styles */
+     
         .modal {
             display: none;
             position: fixed;
@@ -727,6 +728,11 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
                       
                     </div>
                 </div>
+                  <label>Attribute Combination (Optional):</label>
+    <input type="text" name="attribute_combination" placeholder="Red-Large">
+
+    <label>Quantity:</label>
+    <input type="number" name="quantity" min="0" required>
 
                 <button type="submit" name="update_product" class="submit-btn">
                     <i class="fas fa-save"></i> Save Changes
