@@ -2,14 +2,33 @@
 session_start();
 include 'db.php';
 
-// For demo - in real app, use proper authentication
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['user_id'] = 1; // Demo user
-}
-$user_id = $_SESSION['user_id'];
 
-// Handle wishlist add/remove
+if (!isset($_SESSION['user_id'])) {
+   
+    session_unset();
+session_destroy();
+session_start();
+    if (!isset($_SESSION['guest_id'])) {
+        $_SESSION['guest_id'] = "GUEST_" . time() . "_" . rand(1000, 9999);
+    }
+    $current_user = $_SESSION['guest_id'];
+    $user_id = null;
+    $guest_id = $_SESSION['guest_id'];
+} else {
+
+    $user_id = $_SESSION['user_id'];
+    $guest_id = null;
+    $current_user = $user_id;
+}
+
+
 if (isset($_POST['wishlist_product_id'])) {
+ 
+    if (!$user_id) {
+        echo "login_required";
+        exit;
+    }
+    
     $product_id = intval($_POST['wishlist_product_id']);
     
     $check_sql = "SELECT * FROM wishlist WHERE user_id = ? AND product_id = ?";
@@ -19,14 +38,14 @@ if (isset($_POST['wishlist_product_id'])) {
     $check_res = $stmt->get_result();
     
     if ($check_res->num_rows > 0) {
-        // Remove from wishlist
+      
         $delete_sql = "DELETE FROM wishlist WHERE user_id = ? AND product_id = ?";
         $stmt = $conn->prepare($delete_sql);
         $stmt->bind_param("ii", $user_id, $product_id);
         $stmt->execute();
         echo "removed";
     } else {
-        // Add to wishlist
+ 
         $insert_sql = "INSERT INTO wishlist (user_id, product_id) VALUES (?, ?)";
         $stmt = $conn->prepare($insert_sql);
         $stmt->bind_param("ii", $user_id, $product_id);
@@ -36,47 +55,71 @@ if (isset($_POST['wishlist_product_id'])) {
     exit;
 }
 
-// Handle Add to Cart
 if (isset($_POST['cart_product_id'])) {
     $product_id = intval($_POST['cart_product_id']);
-    
-    // Check if product already exists in cart
-    $check_sql = "SELECT * FROM user_carts WHERE user_id = ? AND product_id = ?";
-    $stmt = $conn->prepare($check_sql);
-    $stmt->bind_param("ii", $user_id, $product_id);
+ 
+    if ($user_id) {
+        $check_sql = "SELECT * FROM user_carts WHERE user_id = ? AND product_id = ?";
+        $stmt = $conn->prepare($check_sql);
+        $stmt->bind_param("ii", $user_id, $product_id);
+    } else {
+  
+        $check_sql = "SELECT * FROM user_carts WHERE session_id = ? AND product_id = ?";
+        $stmt = $conn->prepare($check_sql);
+        $stmt->bind_param("si", $guest_id, $product_id);
+    }
+
     $stmt->execute();
     $check_res = $stmt->get_result();
 
     if ($check_res->num_rows > 0) {
-        // Increase quantity
-        $update_sql = "UPDATE user_carts SET quantity = quantity + 1 WHERE user_id = ? AND product_id = ?";
-        $stmt = $conn->prepare($update_sql);
-        $stmt->bind_param("ii", $user_id, $product_id);
+ 
+        if ($user_id) {
+            $update_sql = "UPDATE user_carts SET quantity = quantity + 1 WHERE user_id = ? AND product_id = ?";
+            $stmt = $conn->prepare($update_sql);
+            $stmt->bind_param("ii", $user_id, $product_id);
+        } else {
+            $update_sql = "UPDATE user_carts SET quantity = quantity + 1 WHERE session_id = ? AND product_id = ?";
+            $stmt = $conn->prepare($update_sql);
+            $stmt->bind_param("si", $guest_id, $product_id);
+        }
         $stmt->execute();
     } else {
-        // Insert new cart row
-        $insert_sql = "INSERT INTO user_carts (user_id, product_id, quantity) VALUES (?, ?, 1)";
-        $stmt = $conn->prepare($insert_sql);
-        $stmt->bind_param("ii", $user_id, $product_id);
+
+        if ($user_id) {
+            $insert_sql = "INSERT INTO user_carts (user_id, product_id, quantity) VALUES (?, ?, 1)";
+            $stmt = $conn->prepare($insert_sql);
+            $stmt->bind_param("ii", $user_id, $product_id);
+        } else {
+            $insert_sql = "INSERT INTO user_carts (session_id, product_id, quantity) VALUES (?, ?, 1)";
+            $stmt = $conn->prepare($insert_sql);
+            $stmt->bind_param("si", $guest_id, $product_id);
+        }
         $stmt->execute();
     }
+
     echo "added";
     exit;
 }
 
-// Handle Review Submission
 if (isset($_POST['review_product_id']) && isset($_POST['review_rating']) && isset($_POST['review_comment'])) {
+
+    if (!$user_id) {
+        echo "login_required";
+        exit;
+    }
+    
     $product_id = intval($_POST['review_product_id']);
     $rating = intval($_POST['review_rating']);
     $comment = trim($_POST['review_comment']);
     
     if ($rating >= 1 && $rating <= 5 && !empty($comment)) {
-        // Check if reviews table exists, if not create it
+      
         $check_table_sql = "SHOW TABLES LIKE 'reviews'";
         $table_result = $conn->query($check_table_sql);
         
         if ($table_result->num_rows == 0) {
-            // Create reviews table
+     
             $create_reviews_sql = "CREATE TABLE reviews (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id INT NOT NULL,
@@ -101,7 +144,6 @@ if (isset($_POST['review_product_id']) && isset($_POST['review_rating']) && isse
     exit;
 }
 
-// Fetch products with category information using your schema
 $products_sql = "SELECT p.*, c.name as category_name 
                  FROM products p 
                  LEFT JOIN categories c ON p.category_id = c.id 
@@ -111,7 +153,7 @@ $products_result = $conn->query($products_sql);
 $products = [];
 if ($products_result->num_rows > 0) {
     while ($row = $products_result->fetch_assoc()) {
-        // Get stock quantity from stock table
+        
         $stock_sql = "SELECT SUM(quantity) as total_stock FROM stock WHERE product_id = ?";
         $stmt = $conn->prepare($stock_sql);
         $stmt->bind_param("i", $row['id']);
@@ -124,7 +166,6 @@ if ($products_result->num_rows > 0) {
     }
 }
 
-// Fetch categories
 $categories_sql = "SELECT * FROM categories ORDER BY name";
 $categories_result = $conn->query($categories_sql);
 $categories = [];
@@ -134,22 +175,21 @@ if ($categories_result->num_rows > 0) {
     }
 }
 
-// Fetch wishlist for current user
-$wishlist_sql = "SELECT product_id FROM wishlist WHERE user_id = ?";
-$stmt = $conn->prepare($wishlist_sql);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$wishlist_res = $stmt->get_result();
 $wishlist = [];
-if ($wishlist_res->num_rows > 0) {
-    while ($row = $wishlist_res->fetch_assoc()) {
-        $wishlist[] = $row['product_id'];
+if ($user_id) {
+    $wishlist_sql = "SELECT product_id FROM wishlist WHERE user_id = ?";
+    $stmt = $conn->prepare($wishlist_sql);
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $wishlist_res = $stmt->get_result();
+    if ($wishlist_res->num_rows > 0) {
+        while ($row = $wishlist_res->fetch_assoc()) {
+            $wishlist[] = $row['product_id'];
+        }
     }
 }
 
-// Fetch reviews for all products
 $all_reviews = [];
-// Check if reviews table exists
 $check_table_sql = "SHOW TABLES LIKE 'reviews'";
 $table_result = $conn->query($check_table_sql);
 if ($table_result->num_rows > 0) {
@@ -833,7 +873,7 @@ if ($table_result->num_rows > 0) {
         let allProducts = <?= json_encode($products) ?>;
         let currentDisplay = 'all';
 
-        // Initialize display
+      
         document.addEventListener('DOMContentLoaded', function() {
             displayItems();
         });
@@ -854,18 +894,17 @@ if ($table_result->num_rows > 0) {
                 const stock = parseInt(item.dataset.stock);
 
                 let show = true;
-                
-                // Search filter
+            
                 if (searchTerm && !name.includes(searchTerm)) {
                     show = false;
                 }
                 
-                // Category filter
+           
                 if (categoryFilter !== 'all' && category !== categoryFilter) {
                     show = false;
                 }
                 
-                // Price filter
+               
                 if (priceFilter !== 'all') {
                     if (priceFilter === '0-50' && price > 50) show = false;
                     if (priceFilter === '51-100' && (price < 51 || price > 100)) show = false;
@@ -873,7 +912,7 @@ if ($table_result->num_rows > 0) {
                     if (priceFilter === '201-plus' && price < 201) show = false;
                 }
                 
-                // Wishlist filter
+             
                 if (currentDisplay === 'wishlist') {
                     const wishlistBtn = item.querySelector('.wishlist-btn');
                     if (wishlistBtn.textContent !== '💖') {
@@ -887,7 +926,7 @@ if ($table_result->num_rows > 0) {
                 }
             });
 
-            // Sort items
+           
             visibleItems.sort((a, b) => {
                 switch(sortFilter) {
                     case 'price-low':
@@ -896,12 +935,12 @@ if ($table_result->num_rows > 0) {
                         return b.price - a.price;
                     case 'name':
                         return a.name.localeCompare(b.name);
-                    default: // newest
-                        return 0; // Already sorted by newest from database
+                    default: 
+                        return 0; 
                 }
             });
 
-            // Reorder DOM based on sort
+           
             const grid = document.getElementById('itemsGrid');
             visibleItems.forEach(item => {
                 grid.appendChild(item.element);
@@ -930,9 +969,9 @@ if ($table_result->num_rows > 0) {
             showToast('Showing all products');
         }
 
-        // Event Listeners
+      
         document.addEventListener('click', function(e) {
-            // Wishlist functionality
+          
             if (e.target.classList.contains('wishlist-btn')) {
                 const btn = e.target;
                 const product_id = btn.dataset.id;
@@ -948,7 +987,7 @@ if ($table_result->num_rows > 0) {
                 });
             }
 
-            // Add to cart functionality
+         
             if (e.target.classList.contains('add-to-cart-btn') && !e.target.disabled) {
                 const btn = e.target;
                 const product_id = btn.dataset.id;
@@ -989,14 +1028,13 @@ if ($table_result->num_rows > 0) {
             html += '<table class="comparison-table">';
             html += '<tr><th>Feature</th>';
             
-            // Add product headers
             compareList.forEach(id => {
                 const product = allProducts.find(p => p.id == id);
                 html += `<th>${product.name}</th>`;
             });
             html += '</tr>';
 
-            // Price row
+           
             html += '<tr><td><strong>Price</strong></td>';
             compareList.forEach(id => {
                 const product = allProducts.find(p => p.id == id);
@@ -1004,7 +1042,6 @@ if ($table_result->num_rows > 0) {
             });
             html += '</tr>';
 
-            // Category row
             html += '<tr><td><strong>Category</strong></td>';
             compareList.forEach(id => {
                 const product = allProducts.find(p => p.id == id);
@@ -1012,7 +1049,6 @@ if ($table_result->num_rows > 0) {
             });
             html += '</tr>';
 
-            // Description row
             html += '<tr><td><strong>Description</strong></td>';
             compareList.forEach(id => {
                 const product = allProducts.find(p => p.id == id);
@@ -1020,7 +1056,6 @@ if ($table_result->num_rows > 0) {
             });
             html += '</tr>';
 
-            // Stock row
             html += '<tr><td><strong>Stock</strong></td>';
             compareList.forEach(id => {
                 const product = allProducts.find(p => p.id == id);
@@ -1053,10 +1088,10 @@ if ($table_result->num_rows > 0) {
             }, function(response) {
                 if (response === 'success') {
                     showToast('Review submitted successfully!');
-                    // Clear form
+                   
                     document.getElementById(`rating-${productId}`).value = '';
                     document.getElementById(`comment-${productId}`).value = '';
-                    // Reload page to show new review
+                   
                     setTimeout(() => location.reload(), 1000);
                 } else {
                     showToast('Error submitting review!', true);

@@ -5,13 +5,12 @@ if(!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Add database connection
-include 'db.php'; // Make sure you have your database connection file
+include 'db.php'; 
 
 $username = $_SESSION['username'] ?? 'User';
 $email = $_SESSION['email'] ?? 'user@example.com';
 
-// Fetch categories from database
+
 $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DESC");
 ?>
 
@@ -387,7 +386,6 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
         </div>
     </div>
 
-    <!-- Settings Modal -->
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -421,7 +419,6 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
         </div>
     </div>
 
-    <!-- Profile Modal -->
     <div id="profileModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -454,13 +451,12 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
     </div>
 
     <script>
-        // Load theme preference
+       
         if(localStorage.getItem('theme') === 'dark') {
             document.body.classList.add('dark-theme');
             document.getElementById('themeToggle').checked = true;
         }
 
-        // Load notification preference
         if(localStorage.getItem('notifications') === 'false') {
             document.getElementById('notificationToggle').checked = false;
         }
@@ -488,7 +484,7 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
             }
         }
 
-        // Save notification settings
+        
         document.getElementById('notificationToggle').addEventListener('change', function() {
             localStorage.setItem('notifications', this.checked);
             alert('Notification settings saved!');
@@ -500,7 +496,7 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
             }
         }
 
-        // Close modal when clicking outside
+     
         window.onclick = function(event) {
             if(event.target.classList.contains('modal')) {
                 event.target.classList.remove('active');
