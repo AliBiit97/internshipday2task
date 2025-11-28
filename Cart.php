@@ -1,5 +1,5 @@
 <?php
-// cart.php - Updated with proper guest session handling
+// cart.php - Updated with mock payment functionality
 
 session_start();
 include 'db.php';
@@ -21,7 +21,6 @@ if (!isset($_SESSION['user_id'])) {
     $session_id = null;
     $is_guest = false;
 }
-
 
 // Handle promo code application
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_promo'])) {
@@ -48,8 +47,52 @@ if (isset($_GET['remove_promo'])) {
     exit;
 }
 
+// Handle mock payment processing
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['process_payment'])) {
+    $payment_method = $_POST['payment_method'];
+    $card_number = $_POST['card_number'] ?? '';
+    $expiry_date = $_POST['expiry_date'] ?? '';
+    $cvv = $_POST['cvv'] ?? '';
+    $name_on_card = $_POST['name_on_card'] ?? '';
+    
+    // Mock payment validation
+    $payment_errors = [];
+    
+    if (empty($payment_method)) {
+        $payment_errors[] = "Please select a payment method";
+    }
+    
+    if ($payment_method === 'card') {
+        if (empty($card_number)) $payment_errors[] = "Card number is required";
+        if (empty($expiry_date)) $payment_errors[] = "Expiry date is required";
+        if (empty($cvv)) $payment_errors[] = "CVV is required";
+        if (empty($name_on_card)) $payment_errors[] = "Name on card is required";
+        
+        // Mock card validation
+        if (!empty($card_number) && !preg_match('/^\d{16}$/', str_replace(' ', '', $card_number))) {
+            $payment_errors[] = "Invalid card number format";
+        }
+        if (!empty($expiry_date) && !preg_match('/^\d{2}\/\d{2}$/', $expiry_date)) {
+            $payment_errors[] = "Invalid expiry date format (MM/YY)";
+        }
+        if (!empty($cvv) && !preg_match('/^\d{3,4}$/', $cvv)) {
+            $payment_errors[] = "Invalid CVV format";
+        }
+    }
+    
+    if (empty($payment_errors)) {
+        // Mock successful payment
+        $_SESSION['payment_processed'] = true;
+        $_SESSION['payment_method'] = $payment_method;
+        $_SESSION['payment_reference'] = 'MOCK_' . time() . '_' . rand(1000, 9999);
+        $payment_success = "Payment processed successfully!";
+    } else {
+        $payment_errors_display = $payment_errors;
+    }
+}
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && !isset($_POST['place_order'])) {
+// Existing cart quantity update logic
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && !isset($_POST['place_order']) && !isset($_POST['process_payment'])) {
     if (isset($_POST['product_id'])) {
         $product_id = intval($_POST['product_id']);
  
@@ -115,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && !isset($
     }
 }
 
-
+// Existing order placement logic
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     $guest_email = trim($_POST['guest_email']);
     $guest_name = trim($_POST['guest_name']);
@@ -143,195 +186,197 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     }
     
     if (empty($errors)) {
-        
-        if ($user_id) {
-            $cart_sql = "SELECT uc.*, p.name, p.price, p.category_id
-                         FROM user_carts uc 
-                         JOIN products p ON uc.product_id = p.id 
-                         WHERE uc.user_id = ?";
-            $stmt = $conn->prepare($cart_sql);
-            $stmt->bind_param("i", $user_id);
+        // Check if payment has been processed
+        if (!isset($_SESSION['payment_processed'])) {
+            $errors[] = "Please complete payment before placing order";
         } else {
-            $cart_sql = "SELECT uc.*, p.name, p.price, p.category_id
-                         FROM user_carts uc 
-                         JOIN products p ON uc.product_id = p.id 
-                         WHERE uc.session_id = ?";
-            $stmt = $conn->prepare($cart_sql);
-            $stmt->bind_param("s", $guest_id);
-        }
-        
-        $stmt->execute();
-        $cart_result = $stmt->get_result();
-        $order_cart_items = [];
-        $order_total = 0;
-        
-        while ($row = $cart_result->fetch_assoc()) {
-            $order_cart_items[] = $row;
-            $order_total += $row['price'] * $row['quantity'];
-        }
-        
-   
-        $applied_promo = $_SESSION['applied_promo'] ?? null;
-        $order_discount = 0;
-        
-        if ($applied_promo) {
-            switch($applied_promo['applies_to']) {
-                case 'all':
-                    if ($applied_promo['type'] === 'percentage') {
-                        $order_discount = ($order_total * $applied_promo['value']) / 100;
-                    } else {
-                        $order_discount = $applied_promo['value'];
-                    }
-                    break;
-                    
-                case 'category':
-                    foreach ($order_cart_items as $item) {
-                        if ($item['category_id'] == $applied_promo['category_id']) {
-                            if ($applied_promo['type'] === 'percentage') {
-                                $order_discount += ($item['price'] * $item['quantity'] * $applied_promo['value']) / 100;
-                            } else {
-                                $order_discount += $applied_promo['value'] * $item['quantity'];
+            // Existing order processing logic here (same as before)
+            if ($user_id) {
+                $cart_sql = "SELECT uc.*, p.name, p.price, p.category_id
+                             FROM user_carts uc 
+                             JOIN products p ON uc.product_id = p.id 
+                             WHERE uc.user_id = ?";
+                $stmt = $conn->prepare($cart_sql);
+                $stmt->bind_param("i", $user_id);
+            } else {
+                $cart_sql = "SELECT uc.*, p.name, p.price, p.category_id
+                             FROM user_carts uc 
+                             JOIN products p ON uc.product_id = p.id 
+                             WHERE uc.session_id = ?";
+                $stmt = $conn->prepare($cart_sql);
+                $stmt->bind_param("s", $guest_id);
+            }
+            
+            $stmt->execute();
+            $cart_result = $stmt->get_result();
+            $order_cart_items = [];
+            $order_total = 0;
+            
+            while ($row = $cart_result->fetch_assoc()) {
+                $order_cart_items[] = $row;
+                $order_total += $row['price'] * $row['quantity'];
+            }
+            
+            $applied_promo = $_SESSION['applied_promo'] ?? null;
+            $order_discount = 0;
+            
+            if ($applied_promo) {
+                switch($applied_promo['applies_to']) {
+                    case 'all':
+                        if ($applied_promo['type'] === 'percentage') {
+                            $order_discount = ($order_total * $applied_promo['value']) / 100;
+                        } else {
+                            $order_discount = $applied_promo['value'];
+                        }
+                        break;
+                        
+                    case 'category':
+                        foreach ($order_cart_items as $item) {
+                            if ($item['category_id'] == $applied_promo['category_id']) {
+                                if ($applied_promo['type'] === 'percentage') {
+                                    $order_discount += ($item['price'] * $item['quantity'] * $applied_promo['value']) / 100;
+                                } else {
+                                    $order_discount += $applied_promo['value'] * $item['quantity'];
+                                }
                             }
                         }
-                    }
-                    break;
-                    
-                case 'product':
-                    foreach ($order_cart_items as $item) {
-                        if ($item['product_id'] == $applied_promo['product_id']) {
-                            if ($applied_promo['type'] === 'percentage') {
-                                $order_discount += ($item['price'] * $item['quantity'] * $applied_promo['value']) / 100;
-                            } else {
-                                $order_discount += $applied_promo['value'] * $item['quantity'];
+                        break;
+                        
+                    case 'product':
+                        foreach ($order_cart_items as $item) {
+                            if ($item['product_id'] == $applied_promo['product_id']) {
+                                if ($applied_promo['type'] === 'percentage') {
+                                    $order_discount += ($item['price'] * $item['quantity'] * $applied_promo['value']) / 100;
+                                } else {
+                                    $order_discount += $applied_promo['value'] * $item['quantity'];
+                                }
                             }
                         }
-                    }
-                    break;
-            }
-        }
-        
-        $order_final_total = $order_total - $order_discount;
-  
-        $order_number = 'ORD-' . date('YmdHis') . '-' . mt_rand(1000, 9999);
-        
-       
-        $conn->begin_transaction();
-        
-        try {
-         
-            $order_sql = "INSERT INTO orders (
-                order_number, guest_email, guest_name, guest_phone, 
-                shipping_address, city, state, zip_code, country, 
-                subtotal, discount_amount, tax_amount, shipping_amount, total_amount
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            
-            $order_stmt = $conn->prepare($order_sql);
-            
-            if (!$order_stmt) {
-                throw new Exception("Order preparation failed: " . $conn->error);
+                        break;
+                }
             }
             
-            $tax_amount = 0.00;
-            $shipping_amount = 0.00;
+            $order_final_total = $order_total - $order_discount;
+            $order_number = 'ORD-' . date('YmdHis') . '-' . mt_rand(1000, 9999);
             
-            $order_stmt->bind_param("sssssssssddddd", 
-                $order_number, $guest_email, $guest_name, $guest_phone,
-                $shipping_address, $city, $state, $zip_code, $country,
-                $order_total, $order_discount, $tax_amount, $shipping_amount, $order_final_total
-            );
+            $conn->begin_transaction();
             
-            if (!$order_stmt->execute()) {
-                throw new Exception("Order insertion failed: " . $order_stmt->error);
-            }
-            
-            $order_id = $order_stmt->insert_id;
-            
-            if (!$order_id) {
-                throw new Exception("Failed to get order ID");
-            }
-            
-            $order_stmt->close();
-            
-      
-            $items_inserted = 0;
-            foreach ($order_cart_items as $item) {
-                $item_sql = "INSERT INTO order_items (order_id, product_id, product_name, product_price, quantity, subtotal) 
-                             VALUES (?, ?, ?, ?, ?, ?)";
+            try {
+                $order_sql = "INSERT INTO orders (
+                    order_number, guest_email, guest_name, guest_phone, 
+                    shipping_address, city, state, zip_code, country, 
+                    subtotal, discount_amount, tax_amount, shipping_amount, total_amount
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )";
                 
-                $item_stmt = $conn->prepare($item_sql);
+                $order_stmt = $conn->prepare($order_sql);
                 
-                if (!$item_stmt) {
-                    throw new Exception("Order items preparation failed: " . $conn->error);
+                if (!$order_stmt) {
+                    throw new Exception("Order preparation failed: " . $conn->error);
                 }
                 
-                $product_id = $item['product_id'];
-                $product_name = $item['name'];
-                $product_price = floatval($item['price']);
-                $quantity = intval($item['quantity']);
-                $item_subtotal = $product_price * $quantity;
+                $tax_amount = 0.00;
+                $shipping_amount = 0.00;
+                $payment_method = $_SESSION['payment_method'] ?? 'card';
+                $payment_reference = $_SESSION['payment_reference'] ?? '';
                 
-                $item_stmt->bind_param("iisdid", 
-                    $order_id, $product_id, $product_name, 
-                    $product_price, $quantity, $item_subtotal
+                $order_stmt->bind_param("sssssssssddddd", 
+                    $order_number, $guest_email, $guest_name, $guest_phone,
+                    $shipping_address, $city, $state, $zip_code, $country,
+                    $order_total, $order_discount, $tax_amount, $shipping_amount, $order_final_total
                 );
                 
-                if (!$item_stmt->execute()) {
-                    throw new Exception("Failed to insert order item: " . $item_stmt->error);
+                if (!$order_stmt->execute()) {
+                    throw new Exception("Order insertion failed: " . $order_stmt->error);
                 }
                 
-                $items_inserted++;
-                $item_stmt->close();
-            }
-            
-         
-            if ($applied_promo) {
-                $update_promo_sql = "UPDATE discounts SET used_count = used_count + 1 WHERE id = ?";
-                $promo_stmt = $conn->prepare($update_promo_sql);
-                if ($promo_stmt) {
-                    $promo_id = $applied_promo['id'];
-                    $promo_stmt->bind_param("i", $promo_id);
-                    $promo_stmt->execute();
-                    $promo_stmt->close();
+                $order_id = $order_stmt->insert_id;
+                
+                if (!$order_id) {
+                    throw new Exception("Failed to get order ID");
                 }
+                
+                $order_stmt->close();
+                
+                $items_inserted = 0;
+                foreach ($order_cart_items as $item) {
+                    $item_sql = "INSERT INTO order_items (order_id, product_id, product_name, product_price, quantity, subtotal) 
+                                 VALUES (?, ?, ?, ?, ?, ?)";
+                    
+                    $item_stmt = $conn->prepare($item_sql);
+                    
+                    if (!$item_stmt) {
+                        throw new Exception("Order items preparation failed: " . $conn->error);
+                    }
+                    
+                    $product_id = $item['product_id'];
+                    $product_name = $item['name'];
+                    $product_price = floatval($item['price']);
+                    $quantity = intval($item['quantity']);
+                    $item_subtotal = $product_price * $quantity;
+                    
+                    $item_stmt->bind_param("iisdid", 
+                        $order_id, $product_id, $product_name, 
+                        $product_price, $quantity, $item_subtotal
+                    );
+                    
+                    if (!$item_stmt->execute()) {
+                        throw new Exception("Failed to insert order item: " . $item_stmt->error);
+                    }
+                    
+                    $items_inserted++;
+                    $item_stmt->close();
+                }
+                
+                if ($applied_promo) {
+                    $update_promo_sql = "UPDATE discounts SET used_count = used_count + 1 WHERE id = ?";
+                    $promo_stmt = $conn->prepare($update_promo_sql);
+                    if ($promo_stmt) {
+                        $promo_id = $applied_promo['id'];
+                        $promo_stmt->bind_param("i", $promo_id);
+                        $promo_stmt->execute();
+                        $promo_stmt->close();
+                    }
+                }
+                
+                if ($user_id) {
+                    $clear_cart_sql = "DELETE FROM user_carts WHERE user_id = ?";
+                    $cart_stmt = $conn->prepare($clear_cart_sql);
+                    $cart_stmt->bind_param("i", $user_id);
+                } else {
+                    $clear_cart_sql = "DELETE FROM user_carts WHERE session_id = ?";
+                    $cart_stmt = $conn->prepare($clear_cart_sql);
+                    $cart_stmt->bind_param("s", $guest_id);
+                }
+                
+                if ($cart_stmt) {
+                    $cart_stmt->execute();
+                    $cart_stmt->close();
+                }
+                
+                $conn->commit();
+                
+                // Clear session data
+                unset($_SESSION['applied_promo']);
+                unset($_SESSION['payment_processed']);
+                unset($_SESSION['payment_method']);
+                unset($_SESSION['payment_reference']);
+                
+                $_SESSION['order_success'] = $order_number;
+                $_SESSION['guest_email'] = $guest_email;
+                header("Location: order_confirmation.php");
+                exit;
+                
+            } catch (Exception $e) {
+                $conn->rollback();
+                $order_errors[] = $e->getMessage();
             }
-            
-       
-            if ($user_id) {
-                $clear_cart_sql = "DELETE FROM user_carts WHERE user_id = ?";
-                $cart_stmt = $conn->prepare($clear_cart_sql);
-                $cart_stmt->bind_param("i", $user_id);
-            } else {
-                $clear_cart_sql = "DELETE FROM user_carts WHERE session_id = ?";
-                $cart_stmt = $conn->prepare($clear_cart_sql);
-                $cart_stmt->bind_param("s", $guest_id);
-            }
-            
-            if ($cart_stmt) {
-                $cart_stmt->execute();
-                $cart_stmt->close();
-            }
-            
-      
-            $conn->commit();
-            
-        
-            unset($_SESSION['applied_promo']);
-            
-         
-            $_SESSION['order_success'] = $order_number;
-            $_SESSION['guest_email'] = $guest_email;
-            header("Location: order_confirmation.php");
-            exit;
-            
-        } catch (Exception $e) {
-            $conn->rollback();
-            $order_errors[] = $e->getMessage();
         }
     } else {
         $order_errors = $errors;
     }
 }
 
+// Existing cart data fetching
 if ($user_id) {
     $cart_sql = "SELECT uc.*, p.name, p.price, p.image_url, p.short_desc, c.name as category_name, p.category_id
                  FROM user_carts uc 
@@ -364,7 +409,7 @@ if ($cart_result->num_rows > 0) {
     }
 }
 
-
+// Existing discount calculation
 $applied_promo = $_SESSION['applied_promo'] ?? null;
 $discount_amount = 0;
 $discount_details = '';
@@ -411,13 +456,13 @@ if ($applied_promo) {
 $final_total = $total_price - $discount_amount;
 ?>
 
-
 <!DOCTYPE html>
 <html>
 <head>
     <title>My Cart & Checkout</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
+        /* All existing CSS styles remain the same */
         * {
             margin: 0;
             padding: 0;
@@ -733,6 +778,83 @@ $final_total = $total_price - $discount_amount;
             margin: 15px 0;
         }
 
+        /* New Payment Section Styles */
+        .payment-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 25px 0;
+            border: 1px solid #e0e0e0;
+        }
+
+        .payment-section h3 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .payment-methods {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .payment-method {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .payment-method:hover {
+            border-color: #007bff;
+        }
+
+        .payment-method.selected {
+            border-color: #28a745;
+            background: #f8fff9;
+        }
+
+        .payment-method input {
+            display: none;
+        }
+
+        .payment-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .card-details {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            margin-top: 15px;
+        }
+
+        .payment-success {
+            color: #28a745;
+            background: #d4edda;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .payment-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+            padding: 15px;
+            background: #e7f3ff;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+
         @media (max-width: 768px) {
             .form-row {
                 grid-template-columns: 1fr;
@@ -747,6 +869,10 @@ $final_total = $total_price - $discount_amount;
                 margin-right: 0;
                 margin-bottom: 15px;
             }
+            
+            .payment-methods {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -758,7 +884,7 @@ $final_total = $total_price - $discount_amount;
             <div class="badge" id="badge"><?= $total_items ?> items</div>
         </div>
 
-       
+        <!-- Promo Code Section (unchanged) -->
         <div class="promo-section">
             <h3>💳 Apply Promo Code</h3>
             <?php if (isset($promo_success)): ?>
@@ -784,7 +910,7 @@ $final_total = $total_price - $discount_amount;
             <?php endif; ?>
         </div>
 
-      
+        <!-- Cart Items Section (unchanged) -->
         <div id="cartItems">
             <?php if (empty($cart_items)): ?>
                 <div class="empty-cart">
@@ -824,11 +950,11 @@ $final_total = $total_price - $discount_amount;
         </div>
 
         <?php if (!empty($cart_items)): ?>
-         
+            <!-- Price Breakdown (unchanged) -->
             <div class="price-breakdown">
                 <div class="price-row">
                     <span>Subtotal:</span>
-                    <span>$<?= number_format($total_price, 2) ?></span>
+                    <span><?= number_format($total_price, 2) ?></span>
                 </div>
                 
                 <?php if ($discount_amount > 0): ?>
@@ -854,7 +980,117 @@ $final_total = $total_price - $discount_amount;
                 </div>
             </div>
 
-       
+            <!-- NEW PAYMENT SECTION -->
+            <div class="payment-section">
+                <h3>💳 Payment Information</h3>
+                
+                <?php if (isset($payment_success)): ?>
+                    <div class="payment-success">
+                        ✅ <?= $payment_success ?>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if (isset($payment_errors_display)): ?>
+                    <div class="order-error">
+                        <?php foreach ($payment_errors_display as $error): ?>
+                            <div>❌ <?= $error ?></div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if (!isset($_SESSION['payment_processed'])): ?>
+                    <form method="POST" id="paymentForm">
+                        <div class="payment-methods">
+                            <label class="payment-method" id="cardMethod">
+                                <input type="radio" name="payment_method" value="card" checked>
+                                <div class="payment-icon">💳</div>
+                                <div>Credit/Debit Card</div>
+                            </label>
+                            
+                            <label class="payment-method" id="paypalMethod">
+                                <input type="radio" name="payment_method" value="paypal">
+                                <div class="payment-icon">📱</div>
+                                <div>PayPal</div>
+                            </label>
+                            
+                            <label class="payment-method" id="codMethod">
+                                <input type="radio" name="payment_method" value="cod">
+                                <div class="payment-icon">💰</div>
+                                <div>Cash on Delivery</div>
+                            </label>
+                        </div>
+
+                        <!-- Card Details (shown only when card is selected) -->
+                        <div class="card-details" id="cardDetails">
+                            <div class="form-group">
+                                <label for="name_on_card">👤 Name on Card *</label>
+                                <input type="text" id="name_on_card" name="name_on_card" 
+                                       placeholder="John Doe" value="<?= $_POST['name_on_card'] ?? '' ?>">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="card_number">💳 Card Number *</label>
+                                <input type="text" id="card_number" name="card_number" 
+                                       placeholder="1234 5678 9012 3456" 
+                                       value="<?= $_POST['card_number'] ?? '' ?>"
+                                       maxlength="19">
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="expiry_date">📅 Expiry Date (MM/YY) *</label>
+                                    <input type="text" id="expiry_date" name="expiry_date" 
+                                           placeholder="12/25" 
+                                           value="<?= $_POST['expiry_date'] ?? '' ?>"
+                                           maxlength="5">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="cvv">🔒 CVV *</label>
+                                    <input type="text" id="cvv" name="cvv" 
+                                           placeholder="123" 
+                                           value="<?= $_POST['cvv'] ?? '' ?>"
+                                           maxlength="4">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PayPal Notice -->
+                        <div class="payment-notice" id="paypalNotice" style="display: none;">
+                            <div class="payment-status">
+                                <span>📱</span>
+                                <span>You will be redirected to PayPal to complete your payment after placing the order.</span>
+                            </div>
+                        </div>
+
+                        <!-- COD Notice -->
+                        <div class="payment-notice" id="codNotice" style="display: none;">
+                            <div class="payment-status">
+                                <span>💰</span>
+                                <span>Pay with cash when your order is delivered.</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" name="process_payment" class="submit-order-btn">
+                            Process Payment - <?= number_format($final_total, 2) ?>
+                        </button>
+                    </form>
+                <?php else: ?>
+                    <div class="payment-success">
+                        <div class="payment-status">
+                            <span>✅</span>
+                            <span>
+                                <strong>Payment Processed Successfully!</strong><br>
+                                Method: <?= ucfirst($_SESSION['payment_method']) ?><br>
+                                Reference: <?= $_SESSION['payment_reference'] ?>
+                            </span>
+                        </div>
+                        <p>You can now proceed to place your order below.</p>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Checkout Form (unchanged) -->
             <div class="checkout-section">
                 <h3>🚚 Checkout Information</h3>
                 
@@ -937,15 +1173,23 @@ $final_total = $total_price - $discount_amount;
                                   placeholder="Special delivery instructions or notes about your order"><?= $_POST['notes'] ?? '' ?></textarea>
                     </div>
                     
-                    <button type="submit" name="place_order" class="submit-order-btn">
+                    <button type="submit" name="place_order" class="submit-order-btn" 
+                            <?= !isset($_SESSION['payment_processed']) ? 'disabled' : '' ?>>
                         Place Order - <?= number_format($final_total, 2) ?>
                     </button>
+                    
+                    <?php if (!isset($_SESSION['payment_processed'])): ?>
+                        <div style="text-align: center; margin-top: 10px; color: #dc3545;">
+                            ⚠️ Please complete payment before placing order
+                        </div>
+                    <?php endif; ?>
                 </form>
             </div>
         <?php endif; ?>
     </div>
 
     <script>
+    // Existing JavaScript functions remain the same
     function updateQuantity(productId, action) {
         $.post('', {
             action: action,
@@ -979,13 +1223,79 @@ $final_total = $total_price - $discount_amount;
         }
     }
 
-    document.getElementById('shipping_address').addEventListener('blur', function() {
-        const billingAddress = document.getElementById('billing_address');
-        if (!billingAddress.value) {
-            billingAddress.value = this.value;
+    // New payment method selection functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const paymentMethods = document.querySelectorAll('input[name="payment_method"]');
+        const cardDetails = document.getElementById('cardDetails');
+        const paypalNotice = document.getElementById('paypalNotice');
+        const codNotice = document.getElementById('codNotice');
+        
+        paymentMethods.forEach(method => {
+            method.addEventListener('change', function() {
+                // Reset all displays
+                cardDetails.style.display = 'none';
+                paypalNotice.style.display = 'none';
+                codNotice.style.display = 'none';
+                
+                // Remove selected class from all methods
+                document.querySelectorAll('.payment-method').forEach(pm => {
+                    pm.classList.remove('selected');
+                });
+                
+                // Add selected class to current method
+                this.closest('.payment-method').classList.add('selected');
+                
+                // Show relevant section
+                if (this.value === 'card') {
+                    cardDetails.style.display = 'block';
+                } else if (this.value === 'paypal') {
+                    paypalNotice.style.display = 'block';
+                } else if (this.value === 'cod') {
+                    codNotice.style.display = 'block';
+                }
+            });
+        });
+        
+        // Trigger change event on page load
+        document.querySelector('input[name="payment_method"]:checked').dispatchEvent(new Event('change'));
+        
+        // Card number formatting
+        const cardNumberInput = document.getElementById('card_number');
+        if (cardNumberInput) {
+            cardNumberInput.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+                let formattedValue = value.match(/.{1,4}/g)?.join(' ');
+                if (formattedValue) {
+                    e.target.value = formattedValue;
+                }
+            });
         }
+        
+        // Expiry date formatting
+        const expiryInput = document.getElementById('expiry_date');
+        if (expiryInput) {
+            expiryInput.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\//g, '').replace(/[^0-9]/gi, '');
+                if (value.length >= 2) {
+                    value = value.substring(0, 2) + '/' + value.substring(2, 4);
+                }
+                e.target.value = value;
+            });
+        }
+        
+        // CVV formatting
+        const cvvInput = document.getElementById('cvv');
+        if (cvvInput) {
+            cvvInput.addEventListener('input', function(e) {
+                e.target.value = e.target.value.replace(/[^0-9]/gi, '');
+            });
+        }
+        
+        const totalItems = <?= $total_items ?>;
+        document.getElementById('badge').textContent = totalItems + ' item' + (totalItems !== 1 ? 's' : '');
     });
 
+    // Existing form validation
     document.getElementById('checkoutForm').addEventListener('submit', function(e) {
         const email = document.getElementById('guest_email').value;
         const phone = document.getElementById('guest_phone').value;
@@ -1011,12 +1321,6 @@ $final_total = $total_price - $discount_amount;
     function isValidPhone(phone) {
         return phone.length >= 10;
     }
-
-    
-    document.addEventListener('DOMContentLoaded', function() {
-        const totalItems = <?= $total_items ?>;
-        document.getElementById('badge').textContent = totalItems + ' item' + (totalItems !== 1 ? 's' : '');
-    });
     </script>
 </body>
 </html>

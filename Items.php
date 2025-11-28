@@ -517,7 +517,7 @@ if ($table_result->num_rows > 0) {
 
         .compare-label {
             position: absolute;
-            top: 25px;
+            top: 15px;
             left: 42px;
             font-size: 12px;
             font-weight: 600;
@@ -797,7 +797,7 @@ if ($table_result->num_rows > 0) {
 
         <div class="action-buttons">
             <button class="btn-action" onclick="showComparison()">📊 Compare Selected Products</button>
-            <button class="btn-action" onclick="showWishlist()">💖 Show Wishlist</button>
+            <button class="btn-action" onclick="window.location.href='whishlist.php'">💖 Show Wishlist</button>
             <button class="btn-action" onclick="window.location.href='Cart.php'">View Cart</button>
         </div>
 

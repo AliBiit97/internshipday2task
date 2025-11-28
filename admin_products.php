@@ -12,10 +12,8 @@ $manufacturers = $conn->query("SELECT * FROM manufacturers");
 $categories = $conn->query("SELECT * FROM categories");
 $attributes = $conn->query("SELECT * FROM attributes");
 
-
 $message = '';
 $message_type = '';
-
 
 if(isset($_GET['delete_id'])) {
     $delete_id = intval($_GET['delete_id']);
