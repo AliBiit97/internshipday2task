@@ -107,10 +107,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && !isset($
         }
         
         if ($_POST['action'] === 'increase') {
-            $update_sql = "UPDATE user_carts SET quantity = quantity + 1 WHERE $where_clause";
-            $stmt = $conn->prepare($update_sql);
-            $stmt->bind_param($param_types, ...$where_params);
+            // Check stock availability first
+            $stock_check_sql = "SELECT quantity FROM stock WHERE product_id = ?";
+            $stmt = $conn->prepare($stock_check_sql);
+            $stmt->bind_param("i", $product_id);
             $stmt->execute();
+            $stock_result = $stmt->get_result();
+            $stock_item = $stock_result->fetch_assoc();
+            
+            if ($stock_item && $stock_item['quantity'] > 0) {
+                // Update cart
+                $update_sql = "UPDATE user_carts SET quantity = quantity + 1 WHERE $where_clause";
+                $stmt = $conn->prepare($update_sql);
+                $stmt->bind_param($param_types, ...$where_params);
+                $stmt->execute();
+                
+                // Decrease stock
+                $stock_update_sql = "UPDATE stock SET quantity = quantity - 1 WHERE product_id = ?";
+                $stmt = $conn->prepare($stock_update_sql);
+                $stmt->bind_param("i", $product_id);
+                $stmt->execute();
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Product out of stock']);
+                exit;
+            }
         } 
         elseif ($_POST['action'] === 'decrease') {
             $check_sql = "SELECT quantity FROM user_carts WHERE $where_clause";
@@ -121,22 +141,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && !isset($
             $cart_item = $result->fetch_assoc();
 
             if ($cart_item && $cart_item['quantity'] > 1) {
+                // Update cart
                 $update_sql = "UPDATE user_carts SET quantity = quantity - 1 WHERE $where_clause";
                 $stmt = $conn->prepare($update_sql);
                 $stmt->bind_param($param_types, ...$where_params);
                 $stmt->execute();
+                
+                // Increase stock back
+                $stock_update_sql = "UPDATE stock SET quantity = quantity + 1 WHERE product_id = ?";
+                $stmt = $conn->prepare($stock_update_sql);
+                $stmt->bind_param("i", $product_id);
+                $stmt->execute();
             } else {
+                // Delete from cart and return full quantity to stock
                 $delete_sql = "DELETE FROM user_carts WHERE $where_clause";
                 $stmt = $conn->prepare($delete_sql);
                 $stmt->bind_param($param_types, ...$where_params);
                 $stmt->execute();
+                
+                // Increase stock back by the removed quantity
+                if ($cart_item) {
+                    $stock_update_sql = "UPDATE stock SET quantity = quantity + ? WHERE product_id = ?";
+                    $stmt = $conn->prepare($stock_update_sql);
+                    $stmt->bind_param("ii", $cart_item['quantity'], $product_id);
+                    $stmt->execute();
+                }
             }
         } 
         elseif ($_POST['action'] === 'remove') {
-            $delete_sql = "DELETE FROM user_carts WHERE $where_clause";
-            $stmt = $conn->prepare($delete_sql);
+            // Get current cart quantity before removing
+            $check_sql = "SELECT quantity FROM user_carts WHERE $where_clause";
+            $stmt = $conn->prepare($check_sql);
             $stmt->bind_param($param_types, ...$where_params);
             $stmt->execute();
+            $result = $stmt->get_result();
+            $cart_item = $result->fetch_assoc();
+            
+            if ($cart_item) {
+                // Delete from cart
+                $delete_sql = "DELETE FROM user_carts WHERE $where_clause";
+                $stmt = $conn->prepare($delete_sql);
+                $stmt->bind_param($param_types, ...$where_params);
+                $stmt->execute();
+                
+                // Return full quantity back to stock
+                $stock_update_sql = "UPDATE stock SET quantity = quantity + ? WHERE product_id = ?";
+                $stmt = $conn->prepare($stock_update_sql);
+                $stmt->bind_param("ii", $cart_item['quantity'], $product_id);
+                $stmt->execute();
+            }
         }
    
         if ($user_id) {
@@ -158,7 +211,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && !isset($
     }
 }
 
-// Existing order placement logic
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     $guest_email = trim($_POST['guest_email']);
     $guest_name = trim($_POST['guest_name']);
@@ -263,10 +315,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             
             try {
                 $order_sql = "INSERT INTO orders (
-                    order_number, guest_email, guest_name, guest_phone, 
+                    order_number,user_id, guest_email, guest_name, guest_phone, 
                     shipping_address, city, state, zip_code, country, 
                     subtotal, discount_amount, tax_amount, shipping_amount, total_amount
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )";
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,? )";
                 
                 $order_stmt = $conn->prepare($order_sql);
                 
@@ -279,8 +331,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
                 $payment_method = $_SESSION['payment_method'] ?? 'card';
                 $payment_reference = $_SESSION['payment_reference'] ?? '';
                 
-                $order_stmt->bind_param("sssssssssddddd", 
-                    $order_number, $guest_email, $guest_name, $guest_phone,
+                $order_stmt->bind_param("ssssssssssddddd", 
+                    $order_number,$user_id ,$guest_email, $guest_name, $guest_phone,
                     $shipping_address, $city, $state, $zip_code, $country,
                     $order_total, $order_discount, $tax_amount, $shipping_amount, $order_final_total
                 );
@@ -1025,7 +1077,7 @@ $final_total = $total_price - $discount_amount;
                             <div class="form-group">
                                 <label for="name_on_card">👤 Name on Card *</label>
                                 <input type="text" id="name_on_card" name="name_on_card" 
-                                       placeholder="John Doe" value="<?= $_POST['name_on_card'] ?? '' ?>">
+                                       placeholder="e.g:Ahmed" value="<?= $_POST['name_on_card'] ?? '' ?>">
                             </div>
                             
                             <div class="form-group">

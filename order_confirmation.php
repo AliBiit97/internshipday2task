@@ -420,7 +420,7 @@ unset($_SESSION['guest_email']);
 
         <div class="action-buttons">
             <a href="index.php" class="btn btn-primary">Continue Shopping</a>
-            <a href="orders.php" class="btn btn-outline">View My Orders</a>
+            <a href="order_details.php" class="btn btn-outline">View My Orders</a>
             <button onclick="window.print()" class="btn btn-success">Print Receipt</button>
         </div>
 

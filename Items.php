@@ -165,6 +165,44 @@ if ($products_result->num_rows > 0) {
         $products[] = $row;
     }
 }
+// ----------- RECENTLY VIEWED PRODUCTS -----------
+// Fetch last 10 recently viewed products
+if ($user_id) {
+    $rv_sql = "SELECT p.* FROM recently_viewed rv
+               JOIN products p ON p.id = rv.product_id
+               WHERE rv.user_id = ?
+               ORDER BY rv.viewed_at DESC
+               LIMIT 10";
+    $stmt = $conn->prepare($rv_sql);
+    $stmt->bind_param("i", $user_id);
+} else {
+    $rv_sql = "SELECT p.* FROM recently_viewed rv
+               JOIN products p ON p.id = rv.product_id
+               WHERE rv.session_id = ?
+               ORDER BY rv.viewed_at DESC
+               LIMIT 10";
+    $stmt = $conn->prepare($rv_sql);
+    $stmt->bind_param("s", $guest_id);
+}
+$stmt->execute();
+$recently_viewed_products = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// ----------- RECOMMENDED PRODUCTS -----------
+// Simple recommendation: products from the same category as the first product
+$recommended_products = [];
+if (!empty($products)) {
+    $category_id = $products[0]['category_id']; // reference category
+    $rec_sql = "SELECT * FROM products 
+                WHERE category_id = ? AND id != ?
+                ORDER BY RAND() 
+                LIMIT 5";
+    $stmt = $conn->prepare($rec_sql);
+    $stmt->bind_param("ii", $category_id, $products[0]['id']);
+    $stmt->execute();
+    $recommended_products = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+
 
 $categories_sql = "SELECT * FROM categories ORDER BY name";
 $categories_result = $conn->query($categories_sql);
@@ -189,21 +227,23 @@ if ($user_id) {
     }
 }
 
-$all_reviews = [];
-$check_table_sql = "SHOW TABLES LIKE 'reviews'";
-$table_result = $conn->query($check_table_sql);
-if ($table_result->num_rows > 0) {
-    $reviews_sql = "SELECT r.*, u.username, p.name as product_name 
-                    FROM reviews r 
-                    JOIN users u ON r.user_id = u.id 
-                    JOIN products p ON r.product_id = p.id 
-                    ORDER BY r.created_at DESC";
-    $reviews_result = $conn->query($reviews_sql);
-    if ($reviews_result->num_rows > 0) {
-        while ($row = $reviews_result->fetch_assoc()) {
-            $all_reviews[$row['product_id']][] = $row;
-        }
-    }
+
+if ($user_id) {
+    $sql = "SELECT p.* FROM recently_viewed rv
+            JOIN products p ON p.id = rv.product_id
+            WHERE rv.user_id = ?
+            ORDER BY rv.viewed_at DESC
+            LIMIT 10";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $user_id);
+} else {
+    $sql = "SELECT p.* FROM recently_viewed rv
+            JOIN products p ON p.id = rv.product_id
+            WHERE rv.session_id = ?
+            ORDER BY rv.viewed_at DESC
+            LIMIT 10";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("s", $session_id);
 }
 ?>
 
@@ -752,12 +792,146 @@ if ($table_result->num_rows > 0) {
                 width: 100%;
             }
         }
+        recently-viewed-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.3rem;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #007bff;
+        }
+
+        .recently-viewed-container {
+            display: flex;
+            overflow-x: auto;
+            gap: 12px;
+            padding: 8px;
+            scrollbar-width: thin;
+        }
+
+        .recent-product-card {
+            min-width: 180px;
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .recent-product-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .recent-product-img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .recent-product-img.placeholder {
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .recent-product-info {
+            text-align: center;
+        }
+
+        .recent-product-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+            color: #333;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .recent-product-price {
+            color: #007bff;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .btn-view-product {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background 0.3s;
+            width: 100%;
+        }
+
+        .btn-view-product:hover {
+            background: #218838;
+        }
+
+        /* Recently Viewed Badge */
+        .recent-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 123, 255, 0.9);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            z-index: 10;
+            font-weight: 500;
+        }
+
+        /* Custom scrollbar */
+        .recently-viewed-container::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .recently-viewed-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .recently-viewed-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+
+        .recently-viewed-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🛍️ Shop Our Collection</h1>
 
+        <!-- Recently Viewed Section -->
+        <div class="recently-viewed-section" id="recentlyViewedSection" style="display: none;">
+            <h2 class="section-title">📚 Recently Viewed</h2>
+            <div class="recently-viewed-container" id="recentlyViewedContainer">
+                <!-- Recently viewed products will be loaded here via AJAX -->
+            </div>
+        </div>
+
+        <!-- Filters Section -->
         <div class="filters-section">
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="🔍 Search products..." onkeyup="filterItems()">
@@ -803,13 +977,23 @@ if ($table_result->num_rows > 0) {
 
         <div class="results-count" id="resultsCount"></div>
         
+        <!-- Main Products Grid -->
         <div class="items-grid" id="itemsGrid">
             <?php foreach($products as $item): ?>
-            <div class="item-card" data-name="<?= strtolower(htmlspecialchars($item['name'])) ?>" 
+            <div class="item-card" 
+                 data-name="<?= strtolower(htmlspecialchars($item['name'])) ?>" 
                  data-category="<?= htmlspecialchars($item['category_name']) ?>" 
                  data-price="<?= $item['price'] ?>" 
-                 data-stock="<?= $item['stock_quantity'] ?>">
+                 data-stock="<?= $item['stock_quantity'] ?>"
+                 data-id="<?= $item['id'] ?>"
+                 onmouseenter="startHoverTimer(<?= $item['id'] ?>)"
+                 onmouseleave="clearHoverTimer(<?= $item['id'] ?>)">
                 
+                <!-- Recently Viewed Badge - Will be added dynamically -->
+                <div class="recent-badge" id="badge-<?= $item['id'] ?>" style="display: none;">
+                    🕐 Recently Viewed
+                </div>
+
                 <input type="checkbox" class="compare-checkbox" data-id="<?= $item['id'] ?>" id="compare-<?= $item['id'] ?>">
                 <label for="compare-<?= $item['id'] ?>" class="compare-label">Compare</label>
                 
@@ -872,10 +1056,16 @@ if ($table_result->num_rows > 0) {
         let compareList = [];
         let allProducts = <?= json_encode($products) ?>;
         let currentDisplay = 'all';
+        let hoverTimers = {};
+        let recentlyViewed = new Set(); // Track recently viewed product IDs
 
-      
+        // Load recently viewed products on page load
         document.addEventListener('DOMContentLoaded', function() {
             displayItems();
+            loadRecentlyViewed();
+            
+            // Check if products are recently viewed and show badges
+            checkRecentlyViewedBadges();
         });
 
         function displayItems() {
@@ -899,12 +1089,10 @@ if ($table_result->num_rows > 0) {
                     show = false;
                 }
                 
-           
                 if (categoryFilter !== 'all' && category !== categoryFilter) {
                     show = false;
                 }
                 
-               
                 if (priceFilter !== 'all') {
                     if (priceFilter === '0-50' && price > 50) show = false;
                     if (priceFilter === '51-100' && (price < 51 || price > 100)) show = false;
@@ -912,7 +1100,6 @@ if ($table_result->num_rows > 0) {
                     if (priceFilter === '201-plus' && price < 201) show = false;
                 }
                 
-             
                 if (currentDisplay === 'wishlist') {
                     const wishlistBtn = item.querySelector('.wishlist-btn');
                     if (wishlistBtn.textContent !== '💖') {
@@ -926,7 +1113,6 @@ if ($table_result->num_rows > 0) {
                 }
             });
 
-           
             visibleItems.sort((a, b) => {
                 switch(sortFilter) {
                     case 'price-low':
@@ -936,11 +1122,10 @@ if ($table_result->num_rows > 0) {
                     case 'name':
                         return a.name.localeCompare(b.name);
                     default: 
-                        return 0; 
+                        return 0;
                 }
             });
 
-           
             const grid = document.getElementById('itemsGrid');
             visibleItems.forEach(item => {
                 grid.appendChild(item.element);
@@ -953,25 +1138,166 @@ if ($table_result->num_rows > 0) {
             displayItems();
         }
 
-        function showWishlist() {
-            currentDisplay = 'wishlist';
-            displayItems();
-            showToast('Showing your wishlist items');
+        // Hover tracking functions
+        function startHoverTimer(productId) {
+            // Clear any existing timer for this product
+            if (hoverTimers[productId]) {
+                clearTimeout(hoverTimers[productId]);
+            }
+            
+            // Start new timer (4000ms = 4 seconds)
+            hoverTimers[productId] = setTimeout(() => {
+                addToRecentlyViewed(productId);
+            }, 4000);
         }
 
-        function showAllProducts() {
-            currentDisplay = 'all';
-            document.getElementById('searchInput').value = '';
-            document.getElementById('categoryFilter').value = 'all';
-            document.getElementById('priceFilter').value = 'all';
-            document.getElementById('sortFilter').value = 'newest';
-            displayItems();
-            showToast('Showing all products');
+        function clearHoverTimer(productId) {
+            if (hoverTimers[productId]) {
+                clearTimeout(hoverTimers[productId]);
+                delete hoverTimers[productId];
+            }
         }
 
-      
+        // Add product to recently viewed
+        function addToRecentlyViewed(productId) {
+            // Don't add if already recently viewed
+            if (recentlyViewed.has(productId)) {
+                return;
+            }
+            
+            const product = allProducts.find(p => p.id == productId);
+            if (!product) return;
+            
+            // Add to local recently viewed set
+            recentlyViewed.add(productId);
+            
+            // Show badge on the product
+            const badge = document.getElementById(`badge-${productId}`);
+            if (badge) {
+                badge.style.display = 'block';
+            }
+            
+            // Send to server
+            $.post('add_recently_viewed.php', {
+                product_id: productId,
+                user_id: <?= isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 'null' ?>,
+                session_id: '<?= session_id() ?>'
+            }, function(response) {
+                console.log('Product added to recently viewed:', productId);
+            });
+            
+            // Update the recently viewed section
+            updateRecentlyViewedSection();
+            
+            // Show toast notification
+            showToast(`"${product.name}" added to recently viewed`);
+        }
+
+        // Load recently viewed products from server
+        function loadRecentlyViewed() {
+            $.get('get_recently_viewed.php', {
+                user_id: <?= isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 'null' ?>,
+                session_id: '<?= session_id() ?>'
+            }, function(data) {
+                if (data.length > 0) {
+                    // Store product IDs
+                    data.forEach(product => {
+                        recentlyViewed.add(product.id.toString());
+                    });
+                    
+                    // Show the recently viewed section
+                    displayRecentlyViewed(data);
+                }
+            }, 'json');
+        }
+
+        // Display recently viewed products in the section
+        function displayRecentlyViewed(products) {
+            if (products.length === 0) {
+                document.getElementById('recentlyViewedSection').style.display = 'none';
+                return;
+            }
+            
+            const container = document.getElementById('recentlyViewedContainer');
+            container.innerHTML = '';
+            
+            products.forEach(product => {
+                const productCard = `
+                    <div class="recent-product-card" onclick="viewProduct(${product.id})">
+                        ${product.image_url ? 
+                            `<img src="${product.image_url}" alt="${product.name}" class="recent-product-img">` : 
+                            '<div class="recent-product-img placeholder">📱</div>'
+                        }
+                        <div class="recent-product-info">
+                            <div class="recent-product-name">{product.name}</div>
+                            <div class="recent-product-price">{parseFloat(product.price).toFixed(2)}</div>
+                            <button class="btn-view-product" onclick="event.stopPropagation(); window.location.href='Items.php'">
+                                View Again
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += productCard;
+            });
+            
+            document.getElementById('recentlyViewedSection').style.display = 'block';
+        }
+
+    
+        function updateRecentlyViewedSection() {
+            // Get the newly added product
+            const productId = Array.from(recentlyViewed).pop();
+            const product = allProducts.find(p => p.id == parseInt(productId));
+            
+            if (!product) return;
+            
+            // Add to the container
+            const container = document.getElementById('recentlyViewedContainer');
+            const productCard = `
+                <div class="recent-product-card" onclick="viewProduct(${product.id})">
+                    ${product.image_url ? 
+                        `<img src="${product.image_url}" alt="${product.name}" class="recent-product-img">` : 
+                        '<div class="recent-product-img placeholder">📱</div>'
+                    }
+                    <div class="recent-product-info">
+                        <div class="recent-product-name">${product.name}</div>
+                        <div class="recent-product-price">${parseFloat(product.price).toFixed(2)}</div>
+                        <button class="btn-view-product" onclick="event.stopPropagation(); window.location.href='Items.php'">
+                            View Again
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Add at the beginning
+            container.innerHTML = productCard + container.innerHTML;
+            
+            // Show the section if hidden
+            document.getElementById('recentlyViewedSection').style.display = 'block';
+            
+            // Limit to 10 products
+            const cards = container.querySelectorAll('.recent-product-card');
+            if (cards.length > 10) {
+                cards[cards.length - 1].remove();
+            }
+        }
+
+        // Check and show badges for recently viewed products
+        function checkRecentlyViewedBadges() {
+            recentlyViewed.forEach(productId => {
+                const badge = document.getElementById(`badge-${productId}`);
+                if (badge) {
+                    badge.style.display = 'block';
+                }
+            });
+        }
+
+        function viewProduct(productId) {
+            window.location.href = `product-details.php?id=${productId}`;
+        }
+
+        // Event listeners
         document.addEventListener('click', function(e) {
-          
             if (e.target.classList.contains('wishlist-btn')) {
                 const btn = e.target;
                 const product_id = btn.dataset.id;
@@ -987,7 +1313,6 @@ if ($table_result->num_rows > 0) {
                 });
             }
 
-         
             if (e.target.classList.contains('add-to-cart-btn') && !e.target.disabled) {
                 const btn = e.target;
                 const product_id = btn.dataset.id;
@@ -1018,6 +1343,7 @@ if ($table_result->num_rows > 0) {
             }
         });
 
+        // Keep your original functions
         function showComparison() {
             if (compareList.length === 0) {
                 showToast('Please select products to compare!', true);
@@ -1034,7 +1360,6 @@ if ($table_result->num_rows > 0) {
             });
             html += '</tr>';
 
-           
             html += '<tr><td><strong>Price</strong></td>';
             compareList.forEach(id => {
                 const product = allProducts.find(p => p.id == id);
@@ -1088,10 +1413,8 @@ if ($table_result->num_rows > 0) {
             }, function(response) {
                 if (response === 'success') {
                     showToast('Review submitted successfully!');
-                   
                     document.getElementById(`rating-${productId}`).value = '';
                     document.getElementById(`comment-${productId}`).value = '';
-                   
                     setTimeout(() => location.reload(), 1000);
                 } else {
                     showToast('Error submitting review!', true);
@@ -1109,5 +1432,4 @@ if ($table_result->num_rows > 0) {
             }, 3000);
         }
     </script>
-</body>
 </html>

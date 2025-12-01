@@ -91,6 +91,26 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
         .icon-btn:hover {
             background-color: var(--bg-secondary);
         }
+        .login-btn {
+    background: #4A90E2;       /* Blue theme */
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.25s ease-in-out;
+}
+
+.login-btn:hover {
+    background: #357ABD;
+    transform: translateY(-2px);
+}
+
+.login-btn:active {
+    transform: translateY(0);
+}
 
         .container {
             max-width: 1200px;
@@ -349,6 +369,7 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
         <div class="nav-actions">
             <button class="icon-btn" onclick="openSettingsModal()" title="Settings">⚙️</button>
             <button class="icon-btn" onclick="openProfileModal()" title="Profile">👤</button>
+             <button class="login-btn" onclick="window.location.href='login.php'" title="Profile">Login</button>
         </div>
     </nav>
 
