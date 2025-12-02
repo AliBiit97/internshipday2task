@@ -2,10 +2,6 @@
 session_start();
 include 'db.php';
 
-// For demo, you may want to check if admin is logged in
-// if (!$_SESSION['is_admin']) { header('Location: login.php'); exit; }
-
-// Handle status/payment update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_order'])) {
     $order_id = intval($_POST['order_id']);
     $status = $_POST['status'];
@@ -23,26 +19,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_order'])) {
     }
 }
 
-// Build filter query
 $where_conditions = [];
 $params = [];
 $types = "";
 
-// Filter by status
+
 if (!empty($_GET['filter_status'])) {
     $where_conditions[] = "status = ?";
     $params[] = $_GET['filter_status'];
     $types .= "s";
 }
 
-// Filter by payment status
 if (!empty($_GET['filter_payment'])) {
     $where_conditions[] = "payment_status = ?";
     $params[] = $_GET['filter_payment'];
     $types .= "s";
 }
 
-// Filter by date range
 if (!empty($_GET['date_from'])) {
     $where_conditions[] = "DATE(created_at) >= ?";
     $params[] = $_GET['date_from'];
@@ -55,7 +48,7 @@ if (!empty($_GET['date_to'])) {
     $types .= "s";
 }
 
-// Search by order number, email, or phone
+
 if (!empty($_GET['search'])) {
     $where_conditions[] = "(order_number LIKE ? OR guest_email LIKE ? OR guest_phone LIKE ? OR guest_name LIKE ?)";
     $search_term = "%{$_GET['search']}%";
@@ -66,7 +59,6 @@ if (!empty($_GET['search'])) {
     $types .= "ssss";
 }
 
-// Construct query
 $orders_sql = "SELECT * FROM orders";
 if (!empty($where_conditions)) {
     $orders_sql .= " WHERE " . implode(" AND ", $where_conditions);
@@ -80,7 +72,7 @@ if (!empty($params)) {
 $stmt->execute();
 $orders_res = $stmt->get_result();
 
-// Get statistics
+
 $stats_sql = "SELECT 
     COUNT(*) as total_orders,
     SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
@@ -138,7 +130,7 @@ $stats = $stats_res->fetch_assoc();
             font-size: 14px;
         }
 
-        /* Statistics Cards */
+    
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -171,7 +163,6 @@ $stats = $stats_res->fetch_assoc();
             color: #48bb78;
         }
 
-        /* Filters Section */
         .filters {
             background: white;
             padding: 25px;
@@ -255,7 +246,6 @@ $stats = $stats_res->fetch_assoc();
             background: #cbd5e0;
         }
 
-        /* Messages */
         .message {
             padding: 15px 20px;
             border-radius: 8px;
@@ -287,7 +277,6 @@ $stats = $stats_res->fetch_assoc();
             }
         }
 
-        /* Table Section - Simplified */
         .table-container {
             background: white;
             border-radius: 12px;
@@ -343,7 +332,6 @@ $stats = $stats_res->fetch_assoc();
             background: #f7fafc;
         }
 
-        /* Status Badges */
         .badge {
             display: inline-block;
             padding: 6px 12px;
@@ -363,7 +351,7 @@ $stats = $stats_res->fetch_assoc();
         .badge.pending-payment { background: #fef5e7; color: #d68910; }
         .badge.failed { background: #ffebee; color: #c62828; }
 
-        /* Modal Styles */
+        
         .modal {
             display: none;
             position: fixed;
@@ -612,13 +600,13 @@ $stats = $stats_res->fetch_assoc();
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
+        
         <div class="header">
             <h1>📦 Orders Management</h1>
             <p class="subtitle">Manage and track all customer orders</p>
         </div>
 
-        <!-- Statistics -->
+     
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-label">Total Orders</div>
@@ -646,14 +634,13 @@ $stats = $stats_res->fetch_assoc();
             </div>
         </div>
 
-        <!-- Messages -->
         <?php if(isset($msg)): ?>
             <div class="message <?= $msg_type ?>">
                 <?= htmlspecialchars($msg) ?>
             </div>
         <?php endif; ?>
 
-        <!-- Filters -->
+
         <div class="filters">
             <h2>🔍 Filter Orders</h2>
             <form method="GET">
@@ -703,7 +690,7 @@ $stats = $stats_res->fetch_assoc();
             </form>
         </div>
 
-        <!-- Orders Table - Simplified -->
+
         <div class="table-container">
             <div class="table-header">
                 <h2>Orders List</h2>

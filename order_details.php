@@ -2,25 +2,22 @@
 session_start();
 include 'db.php';
 
-// Assume logged-in user
 $user_id = $_SESSION['user_id'] ?? null;
 
 if(!$user_id){
     die("Please login to view your orders.");
 }
 
-// Handle Return/Exchange Request Submission
 if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_request'])){
     $order_number = $_POST['order_number'];
     $reason = $_POST['reason'];
     $request_type = $_POST['request_type'];
     
-    // Verify order belongs to user and is delivered
     $verify_sql = "SELECT * FROM orders WHERE order_number='$order_number' AND user_id='$user_id' AND status='delivered' AND payment_status='paid'";
     $verify_res = $conn->query($verify_sql);
     
     if($verify_res->num_rows > 0){
-        // Check if request already exists
+       
         $check_sql = "SELECT * FROM returns WHERE order_number='$order_number' AND user_id='$user_id'";
         $check_res = $conn->query($check_sql);
         
@@ -43,7 +40,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_request'])){
     }
 }
 
-// Fetch all orders of the user with return status
 $orders_sql = "SELECT o.*, r.status as return_status, r.request_type 
                FROM orders o 
                LEFT JOIN returns r ON o.order_number = r.order_number AND r.user_id = o.user_id
@@ -238,7 +234,6 @@ $orders_res = $conn->query($orders_sql);
             margin-bottom: 20px;
         }
         
-        /* Modal Styles */
         .modal {
             display: none;
             position: fixed;
@@ -423,7 +418,7 @@ $orders_res = $conn->query($orders_sql);
                     </span>
                 </td>
                 <td>
-                    <a href="order_details.php?order_number=<?= $order['order_number'] ?>" class="btn btn-primary">View Details</a>
+                  
                     
                     <?php if($order['status'] == 'delivered' && $order['payment_status'] == 'paid'): ?>
                         <?php if($order['return_status']): ?>
@@ -451,7 +446,6 @@ $orders_res = $conn->query($orders_sql);
     <?php endif; ?>
 </div>
 
-<!-- Return/Exchange Request Modal -->
 <div id="requestModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -499,7 +493,6 @@ function closeModal() {
     document.getElementById('reason').value = '';
 }
 
-// Close modal when clicking outside
 window.onclick = function(event) {
     const modal = document.getElementById('requestModal');
     if (event.target == modal) {

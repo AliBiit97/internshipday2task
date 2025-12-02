@@ -10,6 +10,22 @@ include 'db.php';
 $username = $_SESSION['username'] ?? 'User';
 $email = $_SESSION['email'] ?? 'user@example.com';
 
+$banner_query = mysqli_query($conn, "SELECT * FROM banners WHERE active = 1 ORDER BY display_order ASC");
+$banners = [];
+if(mysqli_num_rows($banner_query) > 0) {
+    while($banner = mysqli_fetch_assoc($banner_query)) {
+        $banners[] = $banner;
+    }
+}
+
+
+if(empty($banners)) {
+    $banners = [
+        ['id' => 1, 'title' => 'Welcome to Our Store', 'image_url' => 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=400&fit=crop', 'link' => '#', 'description' => 'Discover amazing products'],
+        ['id' => 2, 'title' => 'Summer Sale', 'image_url' => 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&h=400&fit=crop', 'link' => '#', 'description' => 'Up to 50% off on selected items'],
+        ['id' => 3, 'title' => 'New Arrivals', 'image_url' => 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1200&h=400&fit=crop', 'link' => '#', 'description' => 'Check out our latest products'],
+    ];
+}
 
 $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DESC");
 ?>
@@ -56,6 +72,138 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
             transition: background-color 0.3s, color 0.3s;
         }
 
+       
+        .banner-section {
+            margin: 0 2rem;
+            margin-top: 1rem;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px var(--shadow);
+            position: relative;
+            height: 400px;
+        }
+
+        .banner-slider {
+            position: relative;
+            height: 100%;
+            width: 100%;
+        }
+
+        .banner-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            padding: 0 4rem;
+        }
+
+        .banner-slide.active {
+            opacity: 1;
+            z-index: 1;
+        }
+
+        .banner-content {
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 500px;
+            backdrop-filter: blur(5px);
+        }
+
+        .banner-title {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .banner-description {
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.9;
+        }
+
+        .banner-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .banner-btn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+
+        .banner-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            z-index: 2;
+        }
+
+        .banner-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .banner-dot.active {
+            background: white;
+            transform: scale(1.2);
+        }
+
+        .banner-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: background-color 0.3s;
+        }
+
+        .banner-nav:hover {
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        .banner-prev {
+            left: 20px;
+        }
+
+        .banner-next {
+            right: 20px;
+        }
+
         .navbar {
             background-color: var(--card-bg);
             padding: 1rem 2rem;
@@ -91,26 +239,27 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
         .icon-btn:hover {
             background-color: var(--bg-secondary);
         }
+
         .login-btn {
-    background: #4A90E2;       /* Blue theme */
-    color: #fff;
-    border: none;
-    padding: 8px 16px;
-    font-size: 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: 0.25s ease-in-out;
-}
+            background: #4A90E2;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.25s ease-in-out;
+        }
 
-.login-btn:hover {
-    background: #357ABD;
-    transform: translateY(-2px);
-}
+        .login-btn:hover {
+            background: #357ABD;
+            transform: translateY(-2px);
+        }
 
-.login-btn:active {
-    transform: translateY(0);
-}
+        .login-btn:active {
+            transform: translateY(0);
+        }
 
         .container {
             max-width: 1200px;
@@ -361,6 +510,76 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
                 opacity: 1;
             }
         }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .banner-section {
+                height: 300px;
+                margin: 0 1rem;
+                margin-top: 1rem;
+            }
+
+            .banner-slide {
+                padding: 0 2rem;
+            }
+
+            .banner-content {
+                padding: 1.5rem;
+                max-width: 100%;
+            }
+
+            .banner-title {
+                font-size: 1.5rem;
+            }
+
+            .banner-description {
+                font-size: 1rem;
+            }
+
+            .banner-nav {
+                width: 35px;
+                height: 35px;
+                font-size: 1.2rem;
+            }
+
+            .container {
+                padding: 0 1rem;
+            }
+
+            .cards-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .banner-section {
+                height: 250px;
+            }
+
+            .banner-slide {
+                padding: 0 1rem;
+            }
+
+            .banner-content {
+                padding: 1rem;
+            }
+
+            .banner-title {
+                font-size: 1.2rem;
+            }
+
+            .banner-description {
+                font-size: 0.9rem;
+            }
+
+            .navbar {
+                padding: 1rem;
+            }
+
+            .nav-actions {
+                gap: 0.5rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -369,9 +588,41 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
         <div class="nav-actions">
             <button class="icon-btn" onclick="openSettingsModal()" title="Settings">⚙️</button>
             <button class="icon-btn" onclick="openProfileModal()" title="Profile">👤</button>
-             <button class="login-btn" onclick="window.location.href='login.php'" title="Profile">Login</button>
+            <button class="login-btn" onclick="window.location.href='login.php'" title="Profile">Login</button>
         </div>
     </nav>
+
+   
+    <div class="banner-section">
+        <div class="banner-slider" id="bannerSlider">
+            <?php foreach($banners as $index => $banner): ?>
+                <div class="banner-slide <?php echo $index === 0 ? 'active' : ''; ?>" 
+                     style="background-image: url('<?php echo htmlspecialchars($banner['image_url']); ?>')">
+                    <div class="banner-content">
+                        <h2 class="banner-title"><?php echo htmlspecialchars($banner['title']); ?></h2>
+                        <p class="banner-description"><?php echo htmlspecialchars($banner['description'] ?? ''); ?></p>
+                        <?php if(!empty($banner['link'])): ?>
+                            <a href="<?php echo htmlspecialchars($banner['link']); ?>" class="banner-btn">
+                                Learn More
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+            
+        
+            <button class="banner-nav banner-prev" onclick="prevSlide()">❮</button>
+            <button class="banner-nav banner-next" onclick="nextSlide()">❯</button>
+            
+          
+            <div class="banner-controls">
+                <?php foreach($banners as $index => $banner): ?>
+                    <div class="banner-dot <?php echo $index === 0 ? 'active' : ''; ?>" 
+                         onclick="goToSlide(<?php echo $index; ?>)"></div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         <div class="welcome-section">
@@ -472,7 +723,62 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
     </div>
 
     <script>
-       
+        
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.banner-slide');
+        const dots = document.querySelectorAll('.banner-dot');
+        let slideInterval;
+
+        function showSlide(n) {
+           
+            slides.forEach(slide => slide.classList.remove('active'));
+            dots.forEach(dot => dot.classList.remove('active'));
+            
+            /
+            currentSlide = (n + slides.length) % slides.length;
+            
+           
+            slides[currentSlide].classList.add('active');
+            dots[currentSlide].classList.add('active');
+        }
+
+        function nextSlide() {
+            showSlide(currentSlide + 1);
+            resetInterval();
+        }
+
+        function prevSlide() {
+            showSlide(currentSlide - 1);
+            resetInterval();
+        }
+
+        function goToSlide(n) {
+            showSlide(n);
+            resetInterval();
+        }
+
+        function startAutoSlide() {
+            slideInterval = setInterval(() => {
+                nextSlide();
+            }, 5000); 
+        }
+
+        function resetInterval() {
+            clearInterval(slideInterval);
+            startAutoSlide();
+        }
+
+      
+        document.addEventListener('DOMContentLoaded', () => {
+            startAutoSlide();
+            
+            
+            const banner = document.querySelector('.banner-slider');
+            banner.addEventListener('mouseenter', () => clearInterval(slideInterval));
+            banner.addEventListener('mouseleave', startAutoSlide);
+        });
+
+        
         if(localStorage.getItem('theme') === 'dark') {
             document.body.classList.add('dark-theme');
             document.getElementById('themeToggle').checked = true;
@@ -505,7 +811,6 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
             }
         }
 
-        
         document.getElementById('notificationToggle').addEventListener('change', function() {
             localStorage.setItem('notifications', this.checked);
             alert('Notification settings saved!');
@@ -517,7 +822,6 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
             }
         }
 
-     
         window.onclick = function(event) {
             if(event.target.classList.contains('modal')) {
                 event.target.classList.remove('active');

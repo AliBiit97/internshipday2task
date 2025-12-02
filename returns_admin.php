@@ -2,10 +2,7 @@
 session_start();
 include 'db.php';
 
-// Optional: Admin check
-// if(!$_SESSION['is_admin']) { header('Location: login.php'); exit; }
 
-// Handle status update
 if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_return'])) {
     $return_id = intval($_POST['return_id']);
     $status = $_POST['status'];
@@ -18,7 +15,6 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_return'])) {
     $msg = "Return/Exchange request #$return_id updated to '$status'.";
 }
 
-// Build filter query
 $where_clauses = [];
 $params = [];
 $types = '';
@@ -56,7 +52,6 @@ if(!empty($_GET['date_to'])) {
     $types .= 's';
 }
 
-// Base query
 $sql = "SELECT r.*, u.username 
         FROM returns r
         LEFT JOIN users u ON r.user_id = u.id";
@@ -67,7 +62,6 @@ if(!empty($where_clauses)) {
 
 $sql .= " ORDER BY r.created_at DESC";
 
-// Execute with filters
 if(!empty($params)) {
     $stmt = $conn->prepare($sql);
     $stmt->bind_param($types, ...$params);
@@ -77,7 +71,7 @@ if(!empty($params)) {
     $result = $conn->query($sql);
 }
 
-// Get counts for badges
+
 $count_sql = "SELECT 
     COUNT(*) as total,
     SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,

@@ -2,12 +2,27 @@
 session_start();
 include 'db.php';
 
+$check_table = "SHOW TABLES LIKE 'recently_viewed'";
+$table_result = $conn->query($check_table);
+if ($table_result->num_rows == 0) {
+    $create_table = "CREATE TABLE recently_viewed (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NULL,
+        session_id VARCHAR(100) NULL,
+        product_id INT NOT NULL,
+        viewed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+        UNIQUE KEY unique_user_product (user_id, product_id),
+        UNIQUE KEY unique_session_product (session_id, product_id)
+    )";
+    $conn->query($create_table);
+}
 
 if (!isset($_SESSION['user_id'])) {
-   
     session_unset();
-session_destroy();
-session_start();
+    session_destroy();
+    session_start();
     if (!isset($_SESSION['guest_id'])) {
         $_SESSION['guest_id'] = "GUEST_" . time() . "_" . rand(1000, 9999);
     }
@@ -15,15 +30,114 @@ session_start();
     $user_id = null;
     $guest_id = $_SESSION['guest_id'];
 } else {
-
     $user_id = $_SESSION['user_id'];
     $guest_id = null;
     $current_user = $user_id;
 }
 
+if (isset($_POST['track_recently_viewed'])) {
+    $product_id = intval($_POST['track_recently_viewed']);
+    
+    if ($user_id) {
+      
+        $check_sql = "SELECT id FROM recently_viewed WHERE user_id = ? AND product_id = ?";
+        $stmt = $conn->prepare($check_sql);
+        $stmt->bind_param("ii", $user_id, $product_id);
+        $stmt->execute();
+        $check_res = $stmt->get_result();
+        
+        if ($check_res->num_rows > 0) {
+          
+            $update_sql = "UPDATE recently_viewed SET viewed_at = NOW() WHERE user_id = ? AND product_id = ?";
+            $stmt = $conn->prepare($update_sql);
+            $stmt->bind_param("ii", $user_id, $product_id);
+            $stmt->execute();
+        } else {
+            
+            $insert_sql = "INSERT INTO recently_viewed (user_id, product_id) VALUES (?, ?)";
+            $stmt = $conn->prepare($insert_sql);
+            $stmt->bind_param("ii", $user_id, $product_id);
+            $stmt->execute();
+            
+            $count_sql = "SELECT COUNT(*) as count FROM recently_viewed WHERE user_id = ?";
+            $stmt = $conn->prepare($count_sql);
+            $stmt->bind_param("i", $user_id);
+            $stmt->execute();
+            $count_result = $stmt->get_result()->fetch_assoc();
+            
+            if ($count_result['count'] > 10) {
+                $delete_oldest = "DELETE FROM recently_viewed WHERE user_id = ? ORDER BY viewed_at ASC LIMIT 1";
+                $stmt = $conn->prepare($delete_oldest);
+                $stmt->bind_param("i", $user_id);
+                $stmt->execute();
+            }
+        }
+    } else {
+       
+        $check_sql = "SELECT id FROM recently_viewed WHERE session_id = ? AND product_id = ?";
+        $stmt = $conn->prepare($check_sql);
+        $stmt->bind_param("si", $guest_id, $product_id);
+        $stmt->execute();
+        $check_res = $stmt->get_result();
+        
+        if ($check_res->num_rows > 0) {
+         
+            $update_sql = "UPDATE recently_viewed SET viewed_at = NOW() WHERE session_id = ? AND product_id = ?";
+            $stmt = $conn->prepare($update_sql);
+            $stmt->bind_param("si", $guest_id, $product_id);
+            $stmt->execute();
+        } else {
+           
+            $insert_sql = "INSERT INTO recently_viewed (session_id, product_id) VALUES (?, ?)";
+            $stmt = $conn->prepare($insert_sql);
+            $stmt->bind_param("si", $guest_id, $product_id);
+            $stmt->execute();
+            
+            $count_sql = "SELECT COUNT(*) as count FROM recently_viewed WHERE session_id = ?";
+            $stmt = $conn->prepare($count_sql);
+            $stmt->bind_param("s", $guest_id);
+            $stmt->execute();
+            $count_result = $stmt->get_result()->fetch_assoc();
+            
+            if ($count_result['count'] > 10) {
+                $delete_oldest = "DELETE FROM recently_viewed WHERE session_id = ? ORDER BY viewed_at ASC LIMIT 1";
+                $stmt = $conn->prepare($delete_oldest);
+                $stmt->bind_param("s", $guest_id);
+                $stmt->execute();
+            }
+        }
+    }
+    
+    echo "tracked";
+    exit;
+}
+
+if ($user_id) {
+    $rv_sql = "SELECT p.* FROM recently_viewed rv
+               JOIN products p ON p.id = rv.product_id
+               WHERE rv.user_id = ? AND p.enabled = TRUE
+               ORDER BY rv.viewed_at DESC
+               LIMIT 10";
+    $stmt = $conn->prepare($rv_sql);
+    $stmt->bind_param("i", $user_id);
+} else {
+    $rv_sql = "SELECT p.* FROM recently_viewed rv
+               JOIN products p ON p.id = rv.product_id
+               WHERE rv.session_id = ? AND p.enabled = TRUE
+               ORDER BY rv.viewed_at DESC
+               LIMIT 10";
+    $stmt = $conn->prepare($rv_sql);
+    $stmt->bind_param("s", $guest_id);
+}
+$stmt->execute();
+$recently_viewed_products = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+$recently_viewed_ids = [];
+foreach ($recently_viewed_products as $product) {
+    $recently_viewed_ids[] = $product['id'];
+}
 
 if (isset($_POST['wishlist_product_id'])) {
- 
     if (!$user_id) {
         echo "login_required";
         exit;
@@ -38,14 +152,12 @@ if (isset($_POST['wishlist_product_id'])) {
     $check_res = $stmt->get_result();
     
     if ($check_res->num_rows > 0) {
-      
         $delete_sql = "DELETE FROM wishlist WHERE user_id = ? AND product_id = ?";
         $stmt = $conn->prepare($delete_sql);
         $stmt->bind_param("ii", $user_id, $product_id);
         $stmt->execute();
         echo "removed";
     } else {
- 
         $insert_sql = "INSERT INTO wishlist (user_id, product_id) VALUES (?, ?)";
         $stmt = $conn->prepare($insert_sql);
         $stmt->bind_param("ii", $user_id, $product_id);
@@ -57,13 +169,12 @@ if (isset($_POST['wishlist_product_id'])) {
 
 if (isset($_POST['cart_product_id'])) {
     $product_id = intval($_POST['cart_product_id']);
- 
+    
     if ($user_id) {
         $check_sql = "SELECT * FROM user_carts WHERE user_id = ? AND product_id = ?";
         $stmt = $conn->prepare($check_sql);
         $stmt->bind_param("ii", $user_id, $product_id);
     } else {
-  
         $check_sql = "SELECT * FROM user_carts WHERE session_id = ? AND product_id = ?";
         $stmt = $conn->prepare($check_sql);
         $stmt->bind_param("si", $guest_id, $product_id);
@@ -73,7 +184,6 @@ if (isset($_POST['cart_product_id'])) {
     $check_res = $stmt->get_result();
 
     if ($check_res->num_rows > 0) {
- 
         if ($user_id) {
             $update_sql = "UPDATE user_carts SET quantity = quantity + 1 WHERE user_id = ? AND product_id = ?";
             $stmt = $conn->prepare($update_sql);
@@ -85,7 +195,6 @@ if (isset($_POST['cart_product_id'])) {
         }
         $stmt->execute();
     } else {
-
         if ($user_id) {
             $insert_sql = "INSERT INTO user_carts (user_id, product_id, quantity) VALUES (?, ?, 1)";
             $stmt = $conn->prepare($insert_sql);
@@ -103,7 +212,6 @@ if (isset($_POST['cart_product_id'])) {
 }
 
 if (isset($_POST['review_product_id']) && isset($_POST['review_rating']) && isset($_POST['review_comment'])) {
-
     if (!$user_id) {
         echo "login_required";
         exit;
@@ -114,12 +222,10 @@ if (isset($_POST['review_product_id']) && isset($_POST['review_rating']) && isse
     $comment = trim($_POST['review_comment']);
     
     if ($rating >= 1 && $rating <= 5 && !empty($comment)) {
-      
         $check_table_sql = "SHOW TABLES LIKE 'reviews'";
         $table_result = $conn->query($check_table_sql);
         
         if ($table_result->num_rows == 0) {
-     
             $create_reviews_sql = "CREATE TABLE reviews (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id INT NOT NULL,
@@ -153,7 +259,6 @@ $products_result = $conn->query($products_sql);
 $products = [];
 if ($products_result->num_rows > 0) {
     while ($row = $products_result->fetch_assoc()) {
-        
         $stock_sql = "SELECT SUM(quantity) as total_stock FROM stock WHERE product_id = ?";
         $stmt = $conn->prepare($stock_sql);
         $stmt->bind_param("i", $row['id']);
@@ -165,33 +270,10 @@ if ($products_result->num_rows > 0) {
         $products[] = $row;
     }
 }
-// ----------- RECENTLY VIEWED PRODUCTS -----------
-// Fetch last 10 recently viewed products
-if ($user_id) {
-    $rv_sql = "SELECT p.* FROM recently_viewed rv
-               JOIN products p ON p.id = rv.product_id
-               WHERE rv.user_id = ?
-               ORDER BY rv.viewed_at DESC
-               LIMIT 10";
-    $stmt = $conn->prepare($rv_sql);
-    $stmt->bind_param("i", $user_id);
-} else {
-    $rv_sql = "SELECT p.* FROM recently_viewed rv
-               JOIN products p ON p.id = rv.product_id
-               WHERE rv.session_id = ?
-               ORDER BY rv.viewed_at DESC
-               LIMIT 10";
-    $stmt = $conn->prepare($rv_sql);
-    $stmt->bind_param("s", $guest_id);
-}
-$stmt->execute();
-$recently_viewed_products = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// ----------- RECOMMENDED PRODUCTS -----------
-// Simple recommendation: products from the same category as the first product
 $recommended_products = [];
 if (!empty($products)) {
-    $category_id = $products[0]['category_id']; // reference category
+    $category_id = $products[0]['category_id'];
     $rec_sql = "SELECT * FROM products 
                 WHERE category_id = ? AND id != ?
                 ORDER BY RAND() 
@@ -201,8 +283,6 @@ if (!empty($products)) {
     $stmt->execute();
     $recommended_products = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
-
-
 
 $categories_sql = "SELECT * FROM categories ORDER BY name";
 $categories_result = $conn->query($categories_sql);
@@ -227,23 +307,18 @@ if ($user_id) {
     }
 }
 
-
-if ($user_id) {
-    $sql = "SELECT p.* FROM recently_viewed rv
-            JOIN products p ON p.id = rv.product_id
-            WHERE rv.user_id = ?
-            ORDER BY rv.viewed_at DESC
-            LIMIT 10";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $user_id);
-} else {
-    $sql = "SELECT p.* FROM recently_viewed rv
-            JOIN products p ON p.id = rv.product_id
-            WHERE rv.session_id = ?
-            ORDER BY rv.viewed_at DESC
-            LIMIT 10";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $session_id);
+$all_reviews = [];
+if ($products_result->num_rows > 0) {
+    $reviews_sql = "SELECT r.*, u.username FROM reviews r 
+                    JOIN users u ON r.user_id = u.id 
+                    WHERE r.product_id IN (" . implode(',', array_column($products, 'id')) . ")
+                    ORDER BY r.created_at DESC";
+    $reviews_result = $conn->query($reviews_sql);
+    if ($reviews_result->num_rows > 0) {
+        while ($review = $reviews_result->fetch_assoc()) {
+            $all_reviews[$review['product_id']][] = $review;
+        }
+    }
 }
 ?>
 
@@ -255,6 +330,7 @@ if ($user_id) {
     <title>🛍️ Shop Our Collection</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
+       
         * {
             margin: 0;
             padding: 0;
@@ -885,7 +961,7 @@ if ($user_id) {
             background: #218838;
         }
 
-        /* Recently Viewed Badge */
+     
         .recent-badge {
             position: absolute;
             top: 10px;
@@ -899,7 +975,7 @@ if ($user_id) {
             font-weight: 500;
         }
 
-        /* Custom scrollbar */
+       
         .recently-viewed-container::-webkit-scrollbar {
             height: 6px;
         }
@@ -917,21 +993,38 @@ if ($user_id) {
         .recently-viewed-container::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
+   
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🛍️ Shop Our Collection</h1>
 
-        <!-- Recently Viewed Section -->
-        <div class="recently-viewed-section" id="recentlyViewedSection" style="display: none;">
-            <h2 class="section-title">📚 Recently Viewed</h2>
+     
+        <?php if (!empty($recently_viewed_products)): ?>
+        <div class="recently-viewed-section" id="recentlyViewedSection">
+            <h2 class="section-title">Recently Viewed</h2>
             <div class="recently-viewed-container" id="recentlyViewedContainer">
-                <!-- Recently viewed products will be loaded here via AJAX -->
+                <?php foreach($recently_viewed_products as $product): ?>
+                <div class="recent-product-card" onclick="viewProduct(<?= $product['id'] ?>)">
+                    <?php if($product['image_url']): ?>
+                        <img src="<?= htmlspecialchars($product['image_url']) ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="recent-product-img">
+                    <?php else: ?>
+                        <div class="recent-product-img placeholder">📱</div>
+                    <?php endif; ?>
+                    <div class="recent-product-info">
+                        <div class="recent-product-name"><?= htmlspecialchars($product['name']) ?></div>
+                        <div class="recent-product-price"><?= number_format($product['price'], 2) ?></div>
+                        <button class="btn-view-product" onclick="event.stopPropagation(); viewProduct(<?= $product['id'] ?>)">
+                            View Product
+                        </button>
+                    </div>
+                </div>
+                <?php endforeach; ?>
             </div>
         </div>
+        <?php endif; ?>
 
-        <!-- Filters Section -->
         <div class="filters-section">
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="🔍 Search products..." onkeyup="filterItems()">
@@ -976,8 +1069,7 @@ if ($user_id) {
         </div>
 
         <div class="results-count" id="resultsCount"></div>
-        
-        <!-- Main Products Grid -->
+
         <div class="items-grid" id="itemsGrid">
             <?php foreach($products as $item): ?>
             <div class="item-card" 
@@ -989,10 +1081,12 @@ if ($user_id) {
                  onmouseenter="startHoverTimer(<?= $item['id'] ?>)"
                  onmouseleave="clearHoverTimer(<?= $item['id'] ?>)">
                 
-                <!-- Recently Viewed Badge - Will be added dynamically -->
-                <div class="recent-badge" id="badge-<?= $item['id'] ?>" style="display: none;">
+                <!-- Recently Viewed Badge -->
+                <?php if(in_array($item['id'], $recently_viewed_ids)): ?>
+                <div class="recent-badge" id="badge-<?= $item['id'] ?>">
                     🕐 Recently Viewed
                 </div>
+                <?php endif; ?>
 
                 <input type="checkbox" class="compare-checkbox" data-id="<?= $item['id'] ?>" id="compare-<?= $item['id'] ?>">
                 <label for="compare-<?= $item['id'] ?>" class="compare-label">Compare</label>
@@ -1057,16 +1151,152 @@ if ($user_id) {
         let allProducts = <?= json_encode($products) ?>;
         let currentDisplay = 'all';
         let hoverTimers = {};
-        let recentlyViewed = new Set(); // Track recently viewed product IDs
+        let recentlyViewedIds = <?= json_encode($recently_viewed_ids) ?>;
 
-        // Load recently viewed products on page load
         document.addEventListener('DOMContentLoaded', function() {
             displayItems();
-            loadRecentlyViewed();
             
-            // Check if products are recently viewed and show badges
-            checkRecentlyViewedBadges();
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('wishlist-btn')) {
+                    const btn = e.target;
+                    const product_id = btn.dataset.id;
+                    
+                    $.post('', {wishlist_product_id: product_id}, function(response) {
+                        if (response === 'added') {
+                            btn.textContent = '💖';
+                            showToast('Product added to wishlist!');
+                        } else if (response === 'removed') {
+                            btn.textContent = '🤍';
+                            showToast('Product removed from wishlist');
+                        } else {
+                            showToast('Please login to use wishlist!', true);
+                        }
+                    });
+                }
+
+                if (e.target.classList.contains('add-to-cart-btn') && !e.target.disabled) {
+                    const btn = e.target;
+                    const product_id = btn.dataset.id;
+                    
+                    $.post('', {cart_product_id: product_id}, function(response) {
+                        if (response === 'added') {
+                            showToast('🛒 Product added to cart!');
+                        }
+                    });
+                }
+            });
+
+            document.addEventListener('change', function(e) {
+                if (e.target.classList.contains('compare-checkbox')) {
+                    const id = e.target.dataset.id;
+                    if (e.target.checked) {
+                        if (compareList.length < 4) {
+                            compareList.push(id);
+                            showToast('Product added to comparison');
+                        } else {
+                            e.target.checked = false;
+                            showToast('Maximum 4 products can be compared!', true);
+                        }
+                    } else {
+                        compareList = compareList.filter(i => i !== id);
+                        showToast('Product removed from comparison');
+                    }
+                }
+            });
         });
+
+    
+        function startHoverTimer(productId) {
+            if (hoverTimers[productId]) {
+                clearTimeout(hoverTimers[productId]);
+            }
+            
+            hoverTimers[productId] = setTimeout(() => {
+                addToRecentlyViewed(productId);
+            }, 4000);
+        }
+
+        function clearHoverTimer(productId) {
+            if (hoverTimers[productId]) {
+                clearTimeout(hoverTimers[productId]);
+                delete hoverTimers[productId];
+            }
+        }
+
+        
+        function addToRecentlyViewed(productId) {
+           
+            if (recentlyViewedIds.includes(productId.toString())) {
+                return;
+            }
+            
+            const product = allProducts.find(p => p.id == productId);
+            if (!product) return;
+         
+            $.post('', {track_recently_viewed: productId}, function(response) {
+                if (response === 'tracked') {
+             
+                    recentlyViewedIds.push(productId.toString());
+             
+                    const badge = document.getElementById(`badge-${productId}`);
+                    if (!badge) {
+                        const itemCard = document.querySelector(`[data-id="${productId}"]`);
+                        if (itemCard) {
+                            const badgeDiv = document.createElement('div');
+                            badgeDiv.className = 'recent-badge';
+                            badgeDiv.id = `badge-${productId}`;
+                            badgeDiv.textContent = '🕐 Recently Viewed';
+                            badgeDiv.style.display = 'block';
+                            itemCard.insertBefore(badgeDiv, itemCard.firstChild);
+                        }
+                    } else {
+                        badge.style.display = 'block';
+                    }
+                    
+                    updateRecentlyViewedSection(product);
+                    
+                    showToast(`"${product.name}" added to recently viewed`);
+                }
+            });
+        }
+
+        function updateRecentlyViewedSection(product) {
+            let recentlyViewedSection = document.getElementById('recentlyViewedSection');
+            let recentlyViewedContainer = document.getElementById('recentlyViewedContainer');
+            
+       
+            const productCard = `
+                <div class="recent-product-card" onclick="viewProduct(${product.id})">
+                    ${product.image_url ? 
+                        `<img src="${product.image_url}" alt="${product.name}" class="recent-product-img">` : 
+                        '<div class="recent-product-img placeholder">📱</div>'
+                    }
+                    <div class="recent-product-info">
+                        <div class="recent-product-name">${product.name}</div>
+                        <div class="recent-product-price">${parseFloat(product.price).toFixed(2)}</div>
+                        <button class="btn-view-product" onclick="event.stopPropagation(); viewProduct(${product.id})">
+                            View Product
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+       
+            recentlyViewedContainer.insertAdjacentHTML('afterbegin', productCard);
+            
+            const cards = recentlyViewedContainer.querySelectorAll('.recent-product-card');
+            if (cards.length > 10) {
+                cards[cards.length - 1].remove();
+            }
+           
+            if (recentlyViewedSection.style.display === 'none') {
+                recentlyViewedSection.style.display = 'block';
+            }
+        }
+
+        function viewProduct(productId) {
+            window.location.href = `product-details.php?id=${productId}`;
+        }
 
         function displayItems() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
@@ -1138,212 +1368,6 @@ if ($user_id) {
             displayItems();
         }
 
-        // Hover tracking functions
-        function startHoverTimer(productId) {
-            // Clear any existing timer for this product
-            if (hoverTimers[productId]) {
-                clearTimeout(hoverTimers[productId]);
-            }
-            
-            // Start new timer (4000ms = 4 seconds)
-            hoverTimers[productId] = setTimeout(() => {
-                addToRecentlyViewed(productId);
-            }, 4000);
-        }
-
-        function clearHoverTimer(productId) {
-            if (hoverTimers[productId]) {
-                clearTimeout(hoverTimers[productId]);
-                delete hoverTimers[productId];
-            }
-        }
-
-        // Add product to recently viewed
-        function addToRecentlyViewed(productId) {
-            // Don't add if already recently viewed
-            if (recentlyViewed.has(productId)) {
-                return;
-            }
-            
-            const product = allProducts.find(p => p.id == productId);
-            if (!product) return;
-            
-            // Add to local recently viewed set
-            recentlyViewed.add(productId);
-            
-            // Show badge on the product
-            const badge = document.getElementById(`badge-${productId}`);
-            if (badge) {
-                badge.style.display = 'block';
-            }
-            
-            // Send to server
-            $.post('add_recently_viewed.php', {
-                product_id: productId,
-                user_id: <?= isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 'null' ?>,
-                session_id: '<?= session_id() ?>'
-            }, function(response) {
-                console.log('Product added to recently viewed:', productId);
-            });
-            
-            // Update the recently viewed section
-            updateRecentlyViewedSection();
-            
-            // Show toast notification
-            showToast(`"${product.name}" added to recently viewed`);
-        }
-
-        // Load recently viewed products from server
-        function loadRecentlyViewed() {
-            $.get('get_recently_viewed.php', {
-                user_id: <?= isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 'null' ?>,
-                session_id: '<?= session_id() ?>'
-            }, function(data) {
-                if (data.length > 0) {
-                    // Store product IDs
-                    data.forEach(product => {
-                        recentlyViewed.add(product.id.toString());
-                    });
-                    
-                    // Show the recently viewed section
-                    displayRecentlyViewed(data);
-                }
-            }, 'json');
-        }
-
-        // Display recently viewed products in the section
-        function displayRecentlyViewed(products) {
-            if (products.length === 0) {
-                document.getElementById('recentlyViewedSection').style.display = 'none';
-                return;
-            }
-            
-            const container = document.getElementById('recentlyViewedContainer');
-            container.innerHTML = '';
-            
-            products.forEach(product => {
-                const productCard = `
-                    <div class="recent-product-card" onclick="viewProduct(${product.id})">
-                        ${product.image_url ? 
-                            `<img src="${product.image_url}" alt="${product.name}" class="recent-product-img">` : 
-                            '<div class="recent-product-img placeholder">📱</div>'
-                        }
-                        <div class="recent-product-info">
-                            <div class="recent-product-name">{product.name}</div>
-                            <div class="recent-product-price">{parseFloat(product.price).toFixed(2)}</div>
-                            <button class="btn-view-product" onclick="event.stopPropagation(); window.location.href='Items.php'">
-                                View Again
-                            </button>
-                        </div>
-                    </div>
-                `;
-                container.innerHTML += productCard;
-            });
-            
-            document.getElementById('recentlyViewedSection').style.display = 'block';
-        }
-
-    
-        function updateRecentlyViewedSection() {
-            // Get the newly added product
-            const productId = Array.from(recentlyViewed).pop();
-            const product = allProducts.find(p => p.id == parseInt(productId));
-            
-            if (!product) return;
-            
-            // Add to the container
-            const container = document.getElementById('recentlyViewedContainer');
-            const productCard = `
-                <div class="recent-product-card" onclick="viewProduct(${product.id})">
-                    ${product.image_url ? 
-                        `<img src="${product.image_url}" alt="${product.name}" class="recent-product-img">` : 
-                        '<div class="recent-product-img placeholder">📱</div>'
-                    }
-                    <div class="recent-product-info">
-                        <div class="recent-product-name">${product.name}</div>
-                        <div class="recent-product-price">${parseFloat(product.price).toFixed(2)}</div>
-                        <button class="btn-view-product" onclick="event.stopPropagation(); window.location.href='Items.php'">
-                            View Again
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            // Add at the beginning
-            container.innerHTML = productCard + container.innerHTML;
-            
-            // Show the section if hidden
-            document.getElementById('recentlyViewedSection').style.display = 'block';
-            
-            // Limit to 10 products
-            const cards = container.querySelectorAll('.recent-product-card');
-            if (cards.length > 10) {
-                cards[cards.length - 1].remove();
-            }
-        }
-
-        // Check and show badges for recently viewed products
-        function checkRecentlyViewedBadges() {
-            recentlyViewed.forEach(productId => {
-                const badge = document.getElementById(`badge-${productId}`);
-                if (badge) {
-                    badge.style.display = 'block';
-                }
-            });
-        }
-
-        function viewProduct(productId) {
-            window.location.href = `product-details.php?id=${productId}`;
-        }
-
-        // Event listeners
-        document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('wishlist-btn')) {
-                const btn = e.target;
-                const product_id = btn.dataset.id;
-                
-                $.post('', {wishlist_product_id: product_id}, function(response) {
-                    if (response === 'added') {
-                        btn.textContent = '💖';
-                        showToast('Product added to wishlist!');
-                    } else {
-                        btn.textContent = '🤍';
-                        showToast('Product removed from wishlist');
-                    }
-                });
-            }
-
-            if (e.target.classList.contains('add-to-cart-btn') && !e.target.disabled) {
-                const btn = e.target;
-                const product_id = btn.dataset.id;
-                
-                $.post('', {cart_product_id: product_id}, function(response) {
-                    if (response === 'added') {
-                        showToast('🛒 Product added to cart!');
-                    }
-                });
-            }
-        });
-
-        document.addEventListener('change', function(e) {
-            if (e.target.classList.contains('compare-checkbox')) {
-                const id = e.target.dataset.id;
-                if (e.target.checked) {
-                    if (compareList.length < 4) {
-                        compareList.push(id);
-                        showToast('Product added to comparison');
-                    } else {
-                        e.target.checked = false;
-                        showToast('Maximum 4 products can be compared!', true);
-                    }
-                } else {
-                    compareList = compareList.filter(i => i !== id);
-                    showToast('Product removed from comparison');
-                }
-            }
-        });
-
-        // Keep your original functions
         function showComparison() {
             if (compareList.length === 0) {
                 showToast('Please select products to compare!', true);
@@ -1397,6 +1421,10 @@ if ($user_id) {
             document.getElementById('resultsCount').textContent = `Comparing ${compareList.length} products`;
         }
 
+        function showAllProducts() {
+            window.location.reload();
+        }
+
         function submitReview(productId) {
             const rating = document.getElementById(`rating-${productId}`).value;
             const comment = document.getElementById(`comment-${productId}`).value;
@@ -1416,6 +1444,8 @@ if ($user_id) {
                     document.getElementById(`rating-${productId}`).value = '';
                     document.getElementById(`comment-${productId}`).value = '';
                     setTimeout(() => location.reload(), 1000);
+                } else if (response === 'login_required') {
+                    showToast('Please login to submit a review!', true);
                 } else {
                     showToast('Error submitting review!', true);
                 }
@@ -1432,4 +1462,5 @@ if ($user_id) {
             }, 3000);
         }
     </script>
+</body>
 </html>

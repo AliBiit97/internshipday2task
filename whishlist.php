@@ -321,7 +321,7 @@ if(!$result){
                         
                         <div class="card-content">
                             <h3 class="product-name"><?= htmlspecialchars($row['name']) ?></h3>
-                            <div class="product-price">$<?= number_format($row['price'], 2) ?></div>
+                            <div class="product-price"><?= number_format($row['price'], 2) ?></div>
                             
                             <?php 
                                 $stock = $row['total_stock'];
