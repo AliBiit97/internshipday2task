@@ -39,7 +39,6 @@ if (isset($_POST['track_recently_viewed'])) {
     $product_id = intval($_POST['track_recently_viewed']);
     
     if ($user_id) {
-      
         $check_sql = "SELECT id FROM recently_viewed WHERE user_id = ? AND product_id = ?";
         $stmt = $conn->prepare($check_sql);
         $stmt->bind_param("ii", $user_id, $product_id);
@@ -47,13 +46,11 @@ if (isset($_POST['track_recently_viewed'])) {
         $check_res = $stmt->get_result();
         
         if ($check_res->num_rows > 0) {
-          
             $update_sql = "UPDATE recently_viewed SET viewed_at = NOW() WHERE user_id = ? AND product_id = ?";
             $stmt = $conn->prepare($update_sql);
             $stmt->bind_param("ii", $user_id, $product_id);
             $stmt->execute();
         } else {
-            
             $insert_sql = "INSERT INTO recently_viewed (user_id, product_id) VALUES (?, ?)";
             $stmt = $conn->prepare($insert_sql);
             $stmt->bind_param("ii", $user_id, $product_id);
@@ -73,7 +70,6 @@ if (isset($_POST['track_recently_viewed'])) {
             }
         }
     } else {
-       
         $check_sql = "SELECT id FROM recently_viewed WHERE session_id = ? AND product_id = ?";
         $stmt = $conn->prepare($check_sql);
         $stmt->bind_param("si", $guest_id, $product_id);
@@ -81,13 +77,11 @@ if (isset($_POST['track_recently_viewed'])) {
         $check_res = $stmt->get_result();
         
         if ($check_res->num_rows > 0) {
-         
             $update_sql = "UPDATE recently_viewed SET viewed_at = NOW() WHERE session_id = ? AND product_id = ?";
             $stmt = $conn->prepare($update_sql);
             $stmt->bind_param("si", $guest_id, $product_id);
             $stmt->execute();
         } else {
-           
             $insert_sql = "INSERT INTO recently_viewed (session_id, product_id) VALUES (?, ?)";
             $stmt = $conn->prepare($insert_sql);
             $stmt->bind_param("si", $guest_id, $product_id);
@@ -271,6 +265,19 @@ if ($products_result->num_rows > 0) {
     }
 }
 
+// NEW: Fetch multiple images for products
+$product_ids = array_column($products, 'id');
+$product_images = [];
+if (!empty($product_ids)) {
+    $images_sql = "SELECT product_id, image_url FROM product_images WHERE product_id IN (" . implode(',', $product_ids) . ") ORDER BY id ASC";
+    $images_result = $conn->query($images_sql);
+    if ($images_result->num_rows > 0) {
+        while ($row = $images_result->fetch_assoc()) {
+            $product_images[$row['product_id']][] = $row['image_url'];
+        }
+    }
+}
+
 $recommended_products = [];
 if (!empty($products)) {
     $category_id = $products[0]['category_id'];
@@ -330,7 +337,6 @@ if ($products_result->num_rows > 0) {
     <title>🛍️ Shop Our Collection</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
-       
         * {
             margin: 0;
             padding: 0;
@@ -553,17 +559,148 @@ if ($products_result->num_rows > 0) {
             border-color: #667eea;
         }
 
-        .product-image {
+        /* NEW: Multiple Images Gallery Styles */
+        .product-image-container {
+            position: relative;
             width: 100%;
             height: 200px;
+            margin-bottom: 15px;
+            margin-top:  5px;
+        }
+
+        .main-product-image {
+            width: 100%;
+            height: 100%;
             object-fit: cover;
             border-radius: 12px;
-            margin-bottom: 15px;
-            background: #f8f9fa;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .main-product-image:hover {
+            transform: scale(1.03);
+        }
+
+        .thumbnail-container {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            overflow-x: auto;
+            padding: 5px;
+            scrollbar-width: thin;
+        }
+
+        .thumbnail-container::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .thumbnail-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .thumbnail-container::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 10px;
+        }
+
+        .image-thumbnail {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .image-thumbnail:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .image-thumbnail.active {
+            border-color: #764ba2;
+            box-shadow: 0 0 8px rgba(102, 126, 234, 0.5);
+        }
+
+        /* NEW: Image Preview Modal */
+        .image-preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .preview-image-container {
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 85vh;
+            border-radius: 8px;
+            object-fit: contain;
+        }
+
+        .preview-nav {
+            position: absolute;
+            top: 50%;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            transform: translateY(-50%);
+            padding: 0 20px;
+        }
+
+        .preview-nav-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 48px;
+        }
+
+        .preview-nav-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .close-preview {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .close-preview:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
         }
 
         .item-category {
@@ -574,7 +711,8 @@ if ($products_result->num_rows > 0) {
             border-radius: 25px;
             font-size: 11px;
             font-weight: 700;
-            margin-bottom: 16px;
+            margin-bottom: 10px;
+            margin-top: 70px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
@@ -584,7 +722,7 @@ if ($products_result->num_rows > 0) {
             font-size: 22px;
             font-weight: 800;
             color: #222;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             line-height: 1.3;
         }
 
@@ -647,14 +785,14 @@ if ($products_result->num_rows > 0) {
 
         .wishlist-btn {
             position: absolute;
-            top: 15px;
-            right: 18px;
+            top: 5px;
+            right: 5px;
             background: white;
             border: 2px solid #f0f0f0;
             font-size: 24px;
             cursor: pointer;
-            width: 45px;
-            height: 45px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -842,32 +980,6 @@ if ($products_result->num_rows > 0) {
             background: #dc3545;
         }
 
-        @media (max-width: 768px) {
-            .container {
-                padding: 25px;
-            }
-
-            h1 {
-                font-size: 2em;
-            }
-
-            .items-grid {
-                grid-template-columns: 1fr;
-                gap: 20px;
-            }
-
-            .filters-section {
-                padding: 20px;
-            }
-
-            .action-buttons {
-                flex-direction: column;
-            }
-
-            .btn-action {
-                width: 100%;
-            }
-        }
         recently-viewed-section {
             margin: 20px 0;
             padding: 15px;
@@ -961,7 +1073,6 @@ if ($products_result->num_rows > 0) {
             background: #218838;
         }
 
-     
         .recent-badge {
             position: absolute;
             top: 10px;
@@ -975,7 +1086,6 @@ if ($products_result->num_rows > 0) {
             font-weight: 500;
         }
 
-       
         .recently-viewed-container::-webkit-scrollbar {
             height: 6px;
         }
@@ -993,14 +1103,51 @@ if ($products_result->num_rows > 0) {
         .recently-viewed-container::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
-   
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 25px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .items-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .filters-section {
+                padding: 20px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .btn-action {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- NEW: Image Preview Modal -->
+    <div id="imagePreviewModal" class="image-preview-modal">
+        <button class="close-preview" onclick="closePreview()">✕</button>
+        <div class="preview-image-container">
+            <img id="previewImage" class="preview-image" src="" alt="Preview">
+            <div class="preview-nav">
+                <button class="preview-nav-btn" onclick="prevImage()">❮</button>
+                <button class="preview-nav-btn" onclick="nextImage()">❯</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <h1>🛍️ Shop Our Collection</h1>
 
-     
         <?php if (!empty($recently_viewed_products)): ?>
         <div class="recently-viewed-section" id="recentlyViewedSection">
             <h2 class="section-title">Recently Viewed</h2>
@@ -1095,8 +1242,39 @@ if ($products_result->num_rows > 0) {
                     <?= in_array($item['id'], $wishlist) ? "💖" : "🤍" ?>
                 </button>
 
-                <div class="product-image">
-                    <?= $item['image_url'] ? '<img src="'.htmlspecialchars($item['image_url']).'" alt="'.htmlspecialchars($item['name']).'" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">' : '📱' ?>
+                <!-- NEW: Product Images Container -->
+                <div class="product-image-container">
+                    <?php 
+                    $mainImage = $item['image_url'];
+                    $allImages = isset($product_images[$item['id']]) ? $product_images[$item['id']] : [];
+                    
+                    // If there are additional images, include main image in the array
+                    if (!empty($allImages)) {
+                        array_unshift($allImages, $mainImage);
+                    } else {
+                        $allImages = [$mainImage];
+                    }
+                    ?>
+                    
+                    <!-- Main Product Image -->
+                    <img src="<?= htmlspecialchars($mainImage ?: '') ?>" 
+                         alt="<?= htmlspecialchars($item['name']) ?>" 
+                         class="main-product-image"
+                         onclick="openImagePreview(<?= $item['id'] ?>, 0)"
+                      
+                    
+                    <!-- Thumbnail Images -->
+                    <?php if(count($allImages) > 1): ?>
+                    <div class="thumbnail-container" id="thumbnails-<?= $item['id'] ?>">
+                        <?php foreach($allImages as $index => $image): ?>
+                        <img src="<?= htmlspecialchars($image) ?>" 
+                             alt="Thumbnail <?= $index + 1 ?>"
+                             class="image-thumbnail <?= $index === 0 ? 'active' : '' ?>"
+                             onclick="changeMainImage(<?= $item['id'] ?>, <?= $index ?>, this)"
+                             onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"60\" height=\"60\" viewBox=\"0 0 60 60\"><rect width=\"60\" height=\"60\" fill=\"%23f0f0f0\"/><text x=\"30\" y=\"30\" font-family=\"Arial\" font-size=\"10\" fill=\"%23666\" text-anchor=\"middle\" dy=\".3em\"></text></svg>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
                 </div>
 
                 <span class="item-category"><?= htmlspecialchars($item['category_name']) ?></span>
@@ -1152,8 +1330,26 @@ if ($products_result->num_rows > 0) {
         let currentDisplay = 'all';
         let hoverTimers = {};
         let recentlyViewedIds = <?= json_encode($recently_viewed_ids) ?>;
+        
+        // NEW: Variables for image preview
+        let currentPreviewImages = [];
+        let currentPreviewIndex = 0;
+        let currentPreviewProductId = null;
 
+        // NEW: Store all product images data
+        let productImagesData = <?= json_encode($product_images) ?>;
+        let allProductImages = {};
+        
+        // Initialize product images data
         document.addEventListener('DOMContentLoaded', function() {
+            // Prepare all product images data
+            allProducts.forEach(product => {
+                let mainImage = product.image_url;
+                let additionalImages = productImagesData[product.id] || [];
+                let allImages = [mainImage, ...additionalImages].filter(img => img);
+                allProductImages[product.id] = allImages;
+            });
+            
             displayItems();
             
             document.addEventListener('click', function(e) {
@@ -1205,7 +1401,117 @@ if ($products_result->num_rows > 0) {
             });
         });
 
-    
+        // NEW: Change main image when thumbnail is clicked
+        function changeMainImage(productId, imageIndex, thumbnailElement) {
+            const allImages = allProductImages[productId];
+            if (!allImages || !allImages[imageIndex]) return;
+            
+            // Update main image
+            const mainImage = document.querySelector(`[data-id="${productId}"] .main-product-image`);
+            if (mainImage) {
+                mainImage.src = allImages[imageIndex];
+            }
+            
+            // Update active thumbnail
+            const thumbnailsContainer = document.getElementById(`thumbnails-${productId}`);
+            if (thumbnailsContainer) {
+                const thumbnails = thumbnailsContainer.querySelectorAll('.image-thumbnail');
+                thumbnails.forEach(thumb => thumb.classList.remove('active'));
+                thumbnailElement.classList.add('active');
+            }
+        }
+
+        // NEW: Open image preview modal
+        function openImagePreview(productId, startIndex = 0) {
+            const allImages = allProductImages[productId];
+            if (!allImages || allImages.length === 0) return;
+            
+            currentPreviewImages = allImages;
+            currentPreviewIndex = startIndex;
+            currentPreviewProductId = productId;
+            
+            const modal = document.getElementById('imagePreviewModal');
+            const previewImage = document.getElementById('previewImage');
+            
+            previewImage.src = currentPreviewImages[currentPreviewIndex];
+            modal.style.display = 'flex';
+            
+            // Prevent scrolling when modal is open
+            document.body.style.overflow = 'hidden';
+        }
+
+        // NEW: Close preview modal
+        function closePreview() {
+            const modal = document.getElementById('imagePreviewModal');
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // NEW: Navigate to previous image
+        function prevImage() {
+            if (currentPreviewImages.length === 0) return;
+            
+            currentPreviewIndex = (currentPreviewIndex - 1 + currentPreviewImages.length) % currentPreviewImages.length;
+            document.getElementById('previewImage').src = currentPreviewImages[currentPreviewIndex];
+            
+            // Update active thumbnail in product card
+            updateActiveThumbnail();
+        }
+
+        // NEW: Navigate to next image
+        function nextImage() {
+            if (currentPreviewImages.length === 0) return;
+            
+            currentPreviewIndex = (currentPreviewIndex + 1) % currentPreviewImages.length;
+            document.getElementById('previewImage').src = currentPreviewImages[currentPreviewIndex];
+            
+            // Update active thumbnail in product card
+            updateActiveThumbnail();
+        }
+
+        // NEW: Update active thumbnail when navigating in preview
+        function updateActiveThumbnail() {
+            if (!currentPreviewProductId) return;
+            
+            const thumbnailsContainer = document.getElementById(`thumbnails-${currentPreviewProductId}`);
+            if (thumbnailsContainer) {
+                const thumbnails = thumbnailsContainer.querySelectorAll('.image-thumbnail');
+                thumbnails.forEach((thumb, index) => {
+                    if (index === currentPreviewIndex) {
+                        thumb.classList.add('active');
+                        // Also update main image
+                        const mainImage = document.querySelector(`[data-id="${currentPreviewProductId}"] .main-product-image`);
+                        if (mainImage) {
+                            mainImage.src = currentPreviewImages[currentPreviewIndex];
+                        }
+                    } else {
+                        thumb.classList.remove('active');
+                    }
+                });
+            }
+        }
+
+        // Close modal when clicking outside the image
+        document.getElementById('imagePreviewModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePreview();
+            }
+        });
+
+        // Keyboard navigation for image preview
+        document.addEventListener('keydown', function(e) {
+            const modal = document.getElementById('imagePreviewModal');
+            if (modal.style.display === 'flex') {
+                if (e.key === 'Escape') {
+                    closePreview();
+                } else if (e.key === 'ArrowLeft') {
+                    prevImage();
+                } else if (e.key === 'ArrowRight') {
+                    nextImage();
+                }
+            }
+        });
+
         function startHoverTimer(productId) {
             if (hoverTimers[productId]) {
                 clearTimeout(hoverTimers[productId]);
@@ -1223,21 +1529,18 @@ if ($products_result->num_rows > 0) {
             }
         }
 
-        
         function addToRecentlyViewed(productId) {
-           
             if (recentlyViewedIds.includes(productId.toString())) {
                 return;
             }
             
             const product = allProducts.find(p => p.id == productId);
             if (!product) return;
-         
+            
             $.post('', {track_recently_viewed: productId}, function(response) {
                 if (response === 'tracked') {
-             
                     recentlyViewedIds.push(productId.toString());
-             
+                    
                     const badge = document.getElementById(`badge-${productId}`);
                     if (!badge) {
                         const itemCard = document.querySelector(`[data-id="${productId}"]`);
@@ -1264,7 +1567,6 @@ if ($products_result->num_rows > 0) {
             let recentlyViewedSection = document.getElementById('recentlyViewedSection');
             let recentlyViewedContainer = document.getElementById('recentlyViewedContainer');
             
-       
             const productCard = `
                 <div class="recent-product-card" onclick="viewProduct(${product.id})">
                     ${product.image_url ? 
@@ -1281,7 +1583,6 @@ if ($products_result->num_rows > 0) {
                 </div>
             `;
             
-       
             recentlyViewedContainer.insertAdjacentHTML('afterbegin', productCard);
             
             const cards = recentlyViewedContainer.querySelectorAll('.recent-product-card');
@@ -1411,6 +1712,13 @@ if ($products_result->num_rows > 0) {
                 const stockStatus = product.stock_quantity > 0 ? 
                     `In Stock (${product.stock_quantity})` : 'Out of Stock';
                 html += `<td>${stockStatus}</td>`;
+            });
+            html += '</tr>';
+
+            html += '<tr><td><strong>Images</strong></td>';
+            compareList.forEach(id => {
+                const images = allProductImages[id] || [];
+                html += `<td>${images.length} image(s)</td>`;
             });
             html += '</tr>';
 

@@ -7,20 +7,146 @@ if(!isset($_SESSION['admin_id'])) {
     exit();
 }
 
+$upload_dir = "images/";
+if(!is_dir($upload_dir)) {
+    mkdir($upload_dir, 0777, true);
+}
 
 $manufacturers = $conn->query("SELECT * FROM manufacturers");
 $categories = $conn->query("SELECT * FROM categories");
-$attributes = $conn->query("SELECT * FROM attributes");
+
+$attributes_result = $conn->query("
+    SELECT a.*, av.id as value_id, av.value as attribute_value 
+    FROM attributes a 
+    LEFT JOIN attribute_values av ON a.id = av.attribute_id 
+    ORDER BY a.name, av.value
+");
+
+$attributes = [];
+while($row = $attributes_result->fetch_assoc()) {
+    $attr_id = $row['id'];
+    if(!isset($attributes[$attr_id])) {
+        $attributes[$attr_id] = [
+            'id' => $row['id'],
+            'name' => $row['name'],
+            'values' => []
+        ];
+    }
+    if($row['value_id']) {
+        $attributes[$attr_id]['values'][$row['value_id']] = $row['attribute_value'];
+    }
+}
 
 $message = '';
 $message_type = '';
 
+if(isset($_GET['get_product'])) {
+    $product_id = intval($_GET['id']);
+    
+ 
+    $product_result = $conn->query("SELECT * FROM products WHERE id = $product_id");
+    $product = $product_result->fetch_assoc();
+    
+    $images_result = $conn->query("SELECT * FROM product_images WHERE product_id = $product_id");
+    $product_images = [];
+    while($img = $images_result->fetch_assoc()) {
+        $product_images[] = $img;
+    }
+    
+
+    $attributes_result = $conn->query("
+        SELECT a.id, a.name, pa.value 
+        FROM product_attributes pa
+        JOIN attributes a ON pa.attribute_id = a.id
+        WHERE pa.product_id = $product_id
+    ");
+    $product_attributes = [];
+    while($attr = $attributes_result->fetch_assoc()) {
+        $product_attributes[$attr['id']] = $attr['value'];
+    }
+
+    $stock_result = $conn->query("SELECT * FROM stock WHERE product_id = $product_id LIMIT 1");
+    $stock = $stock_result->fetch_assoc();
+
+    $all_attributes_result = $conn->query("
+        SELECT a.*, av.id as value_id, av.value 
+        FROM attributes a 
+        LEFT JOIN attribute_values av ON a.id = av.attribute_id 
+        ORDER BY a.name, av.value
+    ");
+    
+    $all_attributes = [];
+    while($row = $all_attributes_result->fetch_assoc()) {
+        $attr_id = $row['id'];
+        if(!isset($all_attributes[$attr_id])) {
+            $all_attributes[$attr_id] = [
+                'id' => $row['id'],
+                'name' => $row['name'],
+                'values' => []
+            ];
+        }
+        if($row['value_id']) {
+            $all_attributes[$attr_id]['values'][] = [
+                'id' => $row['value_id'],
+                'value' => $row['value']
+            ];
+        }
+    }
+    
+    header('Content-Type: application/json');
+    echo json_encode([
+        'product' => $product,
+        'images' => $product_images,
+        'attributes' => $product_attributes,
+        'stock' => $stock,
+        'all_attributes' => array_values($all_attributes)
+    ]);
+    exit();
+}
+
+if(isset($_GET['delete_image'])) {
+    $image_id = intval($_GET['delete_image']);
+    
+
+    $result = $conn->query("SELECT image_url FROM product_images WHERE id = $image_id");
+    if($result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        if($row['image_url'] && file_exists($row['image_url'])) {
+            unlink($row['image_url']);
+        }
+    }
+    
+    if($conn->query("DELETE FROM product_images WHERE id = $image_id")) {
+        echo json_encode(['success' => true]);
+    } else {
+        echo json_encode(['success' => false]);
+    }
+    exit();
+}
+
 if(isset($_GET['delete_id'])) {
     $delete_id = intval($_GET['delete_id']);
-  
-    $conn->query("DELETE FROM product_attributes WHERE product_id = $delete_id");
+
+    $result = $conn->query("SELECT image_url FROM products WHERE id = $delete_id");
+    if($result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        if($row['image_url'] && file_exists($row['image_url'])) {
+            unlink($row['image_url']);
+        }
+    }
     
-   
+
+    $images_result = $conn->query("SELECT image_url FROM product_images WHERE product_id = $delete_id");
+    while($img = $images_result->fetch_assoc()) {
+        if($img['image_url'] && file_exists($img['image_url'])) {
+            unlink($img['image_url']);
+        }
+    }
+    $conn->query("DELETE FROM product_images WHERE product_id = $delete_id");
+    
+    $conn->query("DELETE FROM product_attributes WHERE product_id = $delete_id");
+    $conn->query("DELETE FROM stock WHERE product_id = $delete_id");
+    
     if($conn->query("DELETE FROM products WHERE id = $delete_id")) {
         $message = "Product deleted successfully!";
         $message_type = "success";
@@ -37,32 +163,89 @@ if(isset($_POST['update_product'])) {
     $manufacturer_id = $_POST['manufacturer'];
     $category_id = $_POST['category'];
     $keywords = $_POST['keywords'];
-    $image_url = $_POST['image_url'];
     $short_desc = $_POST['short_desc'];
     $long_desc = $_POST['long_desc'];
     $meta_desc = $_POST['meta_desc'];
     $valid_from = $_POST['valid_from'];
     $enabled = isset($_POST['enabled']) ? 1 : 0;
 
+    $image_url = $_POST['existing_image'] ?? '';
+    if(isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
+        $file_name = time() . '_' . basename($_FILES['image']['name']);
+        $target_path = $upload_dir . $file_name;
+   
+        $allowed_types = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        $file_ext = strtolower(pathinfo($target_path, PATHINFO_EXTENSION));
+        
+        if(in_array($file_ext, $allowed_types)) {
+            if(move_uploaded_file($_FILES['image']['tmp_name'], $target_path)) {
+                if(!empty($image_url) && file_exists($image_url)) {
+                    unlink($image_url);
+                }
+                $image_url = $target_path;
+            }
+        }
+    }
+    
+
+    $uploaded_images = [];
+    if(!empty($_FILES['additional_images']['name'][0])) {
+        $total_files = count($_FILES['additional_images']['name']);
+        
+        for($i = 0; $i < $total_files; $i++) {
+            if($_FILES['additional_images']['error'][$i] == 0) {
+                $file_name = time() . '_' . $i . '_' . basename($_FILES['additional_images']['name'][$i]);
+                $target_path = $upload_dir . $file_name;
+                $file_ext = strtolower(pathinfo($target_path, PATHINFO_EXTENSION));
+                
+                if(in_array($file_ext, $allowed_types)) {
+                    if(move_uploaded_file($_FILES['additional_images']['tmp_name'][$i], $target_path)) {
+                        $uploaded_images[] = $target_path;
+                    }
+                }
+            }
+        }
+    }
+    
     $stmt = $conn->prepare("UPDATE products SET name=?, price=?, manufacturer_id=?, category_id=?, keywords=?, image_url=?, short_desc=?, long_desc=?, meta_desc=?, valid_from=?, enabled=? WHERE id=?");
     
     if($stmt) {
         $stmt->bind_param("sdiissssssii", $name, $price, $manufacturer_id, $category_id, $keywords, $image_url, $short_desc, $long_desc, $meta_desc, $valid_from, $enabled, $product_id);
         
         if($stmt->execute()) {
-           
-            $conn->query("DELETE FROM product_attributes WHERE product_id = $product_id");
+      
+            foreach($uploaded_images as $image_path) {
+                $img_stmt = $conn->prepare("INSERT INTO product_images (product_id, image_url) VALUES (?, ?)");
+                $img_stmt->bind_param("is", $product_id, $image_path);
+                $img_stmt->execute();
+            }
             
-           
-            if(isset($_POST['attributes'])) {
-                foreach($_POST['attributes'] as $attr_id => $value) {
-                    if(!empty($value)) {
-                        $stmt2 = $conn->prepare("INSERT INTO product_attributes (product_id, attribute_id, value) VALUES (?, ?, ?)");
-                        $stmt2->bind_param("iis", $product_id, $attr_id, $value);
-                        $stmt2->execute();
-                        
+  
+            $conn->query("DELETE FROM product_attributes WHERE product_id = $product_id");
+
+            if(isset($_POST['attribute_values'])) {
+                foreach($_POST['attribute_values'] as $attribute_id => $value_id) {
+                    if(!empty($value_id)) {
+                        $value_result = $conn->query("SELECT value FROM attribute_values WHERE id = $value_id");
+                        if($value_result->num_rows > 0) {
+                            $value_row = $value_result->fetch_assoc();
+                            $stmt2 = $conn->prepare("INSERT INTO product_attributes (product_id, attribute_id, value) VALUES (?, ?, ?)");
+                            $stmt2->bind_param("iis", $product_id, $attribute_id, $value_row['value']);
+                            $stmt2->execute();
+                        }
                     }
                 }
+            }
+ 
+            $attribute_combination = $_POST['attribute_combination'] ?? '';
+            $quantity = $_POST['quantity'] ?? 0;
+            
+            $stock_check = $conn->query("SELECT id FROM stock WHERE product_id = $product_id AND attribute_combination = '$attribute_combination'");
+            
+            if($stock_check->num_rows > 0) {
+                $conn->query("UPDATE stock SET quantity = $quantity WHERE product_id = $product_id AND attribute_combination = '$attribute_combination'");
+            } else {
+                $conn->query("INSERT INTO stock (product_id, attribute_combination, quantity) VALUES ($product_id, '$attribute_combination', $quantity)");
             }
             
             $message = "Product updated successfully!";
@@ -74,20 +257,52 @@ if(isset($_POST['update_product'])) {
     }
 }
 
-
 if(isset($_POST['add_product'])) {
     $name = $_POST['name'];
     $price = $_POST['price'];
     $manufacturer_id = $_POST['manufacturer'];
     $category_id = $_POST['category'];
     $keywords = $_POST['keywords'];
-    $image_url = $_POST['image_url'];
     $short_desc = $_POST['short_desc'];
     $long_desc = $_POST['long_desc'];
     $meta_desc = $_POST['meta_desc'];
     $valid_from = $_POST['valid_from'];
     $enabled = isset($_POST['enabled']) ? 1 : 0;
+    $image_url = '';
 
+    if(isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
+        $file_name = time() . '_' . basename($_FILES['image']['name']);
+        $target_path = $upload_dir . $file_name;
+
+        $allowed_types = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        $file_ext = strtolower(pathinfo($target_path, PATHINFO_EXTENSION));
+        
+        if(in_array($file_ext, $allowed_types)) {
+            if(move_uploaded_file($_FILES['image']['tmp_name'], $target_path)) {
+                $image_url = $target_path;
+            }
+        }
+    }
+
+    $uploaded_images = [];
+    if(!empty($_FILES['additional_images']['name'][0])) {
+        $total_files = count($_FILES['additional_images']['name']);
+        
+        for($i = 0; $i < $total_files; $i++) {
+            if($_FILES['additional_images']['error'][$i] == 0) {
+                $file_name = time() . '_' . $i . '_' . basename($_FILES['additional_images']['name'][$i]);
+                $target_path = $upload_dir . $file_name;
+                $file_ext = strtolower(pathinfo($target_path, PATHINFO_EXTENSION));
+                
+                if(in_array($file_ext, $allowed_types)) {
+                    if(move_uploaded_file($_FILES['additional_images']['tmp_name'][$i], $target_path)) {
+                        $uploaded_images[] = $target_path;
+                    }
+                }
+            }
+        }
+    }
+    
     $stmt = $conn->prepare("INSERT INTO products (name, price, manufacturer_id, category_id, keywords, image_url, short_desc, long_desc, meta_desc, valid_from, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     
     if($stmt) {
@@ -95,23 +310,39 @@ if(isset($_POST['add_product'])) {
         
         if($stmt->execute()) {
             $product_id = $stmt->insert_id;
+  
+            foreach($uploaded_images as $image_path) {
+                $img_stmt = $conn->prepare("INSERT INTO product_images (product_id, image_url) VALUES (?, ?)");
+                $img_stmt->bind_param("is", $product_id, $image_path);
+                $img_stmt->execute();
+            }
 
-            if(isset($_POST['attributes'])) {
-                foreach($_POST['attributes'] as $attr_id => $value) {
-                    if(!empty($value)) {
-                        $stmt2 = $conn->prepare("INSERT INTO product_attributes (product_id, attribute_id, value) VALUES (?, ?, ?)");
-                        $stmt2->bind_param("iis", $product_id, $attr_id, $value);
-                        $stmt2->execute();
+            if(isset($_POST['attribute_values'])) {
+                foreach($_POST['attribute_values'] as $attribute_id => $value_id) {
+                    if(!empty($value_id)) {
+                        $value_result = $conn->query("SELECT value FROM attribute_values WHERE id = $value_id");
+                        if($value_result->num_rows > 0) {
+                            $value_row = $value_result->fetch_assoc();
+                            $stmt2 = $conn->prepare("INSERT INTO product_attributes (product_id, attribute_id, value) VALUES (?, ?, ?)");
+                            $stmt2->bind_param("iis", $product_id, $attribute_id, $value_row['value']);
+                            $stmt2->execute();
+                        }
                     }
                 }
             }
 
+            $attribute_combination = $_POST['attribute_combination'] ?? '';
+            $quantity = $_POST['quantity'] ?? 0;
+            
+            if(!empty($attribute_combination) || $quantity > 0) {
+                $conn->query("INSERT INTO stock (product_id, attribute_combination, quantity) VALUES ($product_id, '$attribute_combination', $quantity)");
+            }
+            
             $message = "Product added successfully!";
             $message_type = "success";
         }
     }
 }
-
 
 $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS category_name FROM products p 
                           JOIN manufacturers m ON p.manufacturer_id = m.id 
@@ -208,7 +439,6 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
             to { opacity: 1; transform: translateY(0); }
         }
         
-
         .table-container {
             overflow-x: auto;
             border-radius: 10px;
@@ -290,7 +520,7 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
             transform: translateY(-2px);
         }
         
-     
+
         .modal {
             display: none;
             position: fixed;
@@ -386,6 +616,7 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
         input[type="text"],
         input[type="number"],
         input[type="date"],
+        input[type="file"],
         select,
         textarea {
             width: 100%;
@@ -464,6 +695,158 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
             color: #667eea;
             font-size: 16px;
         }
+        
+        .image-preview {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 2px solid #e0e0e0;
+        }
+        
+        .current-image {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        
+        /* Add this new style for stock badge */
+        .stock-badge {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+        
+        .in-stock {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .low-stock {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .out-of-stock {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        /* Additional images styles */
+        .additional-images-container {
+            margin-top: 15px;
+        }
+        
+        .additional-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .additional-image-item {
+            position: relative;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+        }
+        
+        .additional-image-preview {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+        
+        .delete-image-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .delete-image-btn:hover {
+            background: #c0392b;
+        }
+        
+        .add-more-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        
+        .add-more-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+        
+        .image-count {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .hidden-file-input {
+            display: none;
+        }
+        
+        .image-inputs-container {
+            margin-top: 10px;
+        }
+        
+        .image-input-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .remove-input-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .remove-input-btn:hover {
+            background: #c0392b;
+        }
     </style>
 </head>
 <body>
@@ -494,12 +877,29 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
                         <th>Price</th>
                         <th>Manufacturer</th>
                         <th>Category</th>
+                        <th>Stock</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php while($p = $products->fetch_assoc()) { ?>
+                    <?php while($p = $products->fetch_assoc()) { 
+
+                        $stock_result = $conn->query("SELECT SUM(quantity) as total_stock FROM stock WHERE product_id = {$p['id']}");
+                        $stock_data = $stock_result->fetch_assoc();
+                        $total_stock = $stock_data['total_stock'] ?? 0;
+          
+                        if($total_stock > 10) {
+                            $stock_class = 'in-stock';
+                            $stock_text = $total_stock . ' in stock';
+                        } elseif($total_stock > 0) {
+                            $stock_class = 'low-stock';
+                            $stock_text = $total_stock . ' low stock';
+                        } else {
+                            $stock_class = 'out-of-stock';
+                            $stock_text = 'Out of stock';
+                        }
+                    ?>
                     <tr>
                         <td><?php echo $p['id']; ?></td>
                         <td>
@@ -509,10 +909,18 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
                                 <i class="fas fa-image" style="font-size: 40px; color: #ccc;"></i>
                             <?php endif; ?>
                         </td>
-                        <td><strong><?php echo $p['name']; ?></strong></td>
+                        <td>
+                            <strong><?php echo $p['name']; ?></strong>
+                            <span class="stock-badge <?php echo $stock_class; ?>"><?php echo $stock_text; ?></span>
+                        </td>
                         <td><span class="price-tag">$<?php echo number_format($p['price'], 2); ?></span></td>
                         <td><?php echo $p['manufacturer_name']; ?></td>
                         <td><?php echo $p['category_name']; ?></td>
+                        <td>
+                            <span class="stock-badge <?php echo $stock_class; ?>">
+                                <?php echo $stock_text; ?>
+                            </span>
+                        </td>
                         <td>
                             <span class="status-badge <?php echo $p['enabled'] ? 'enabled' : 'disabled'; ?>">
                                 <?php echo $p['enabled'] ? 'Enabled' : 'Disabled'; ?>
@@ -534,7 +942,6 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
     </div>
 </div>
 
-
 <div id="addModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -542,7 +949,7 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
             <span class="close" onclick="closeAddModal()">&times;</span>
         </div>
         <div class="modal-body">
-            <form method="POST" action="">
+            <form method="POST" action="" enctype="multipart/form-data" id="addForm">
                 <div class="form-grid">
                     <div class="form-group">
                         <label><i class="fas fa-tag"></i> Product Name</label>
@@ -578,14 +985,27 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
                         </select>
                     </div>
 
-                    <div class="form-group full-width">
-                        <label><i class="fas fa-key"></i> Keywords</label>
-                        <input type="text" name="keywords">
+                    <div class="form-group">
+                        <label><i class="fas fa-image"></i> Main Product Image</label>
+                        <input type="file" name="image" accept="image/*" onchange="previewImage(this, 'addPreview')">
+                        <div id="addPreview"></div>
                     </div>
                     
                     <div class="form-group full-width">
-                        <label><i class="fas fa-image"></i> Image URL</label>
-                        <input type="text" name="image_url">
+                        <label><i class="fas fa-images"></i> Additional Product Images</label>
+                        <div class="additional-images-container">
+                            <div class="image-count" id="addImageCount">No images selected</div>
+                            <div class="additional-images" id="addAdditionalPreview"></div>
+                            <div class="image-inputs-container" id="addImageInputs"></div>
+                            <button type="button" class="add-more-btn" onclick="addMoreImageInput('add')">
+                                <i class="fas fa-plus"></i> Add More Images
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label><i class="fas fa-key"></i> Keywords</label>
+                        <input type="text" name="keywords">
                     </div>
                     
                     <div class="form-group full-width">
@@ -619,14 +1039,31 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
                 <div class="attributes-section">
                     <h3><i class="fas fa-cogs"></i> Product Attributes</h3>
                     <div class="form-grid">
-                        <?php 
-                        $attributes->data_seek(0);
-                        while($a = $attributes->fetch_assoc()) { ?>
+                        <?php foreach($attributes as $attr): ?>
                             <div class="form-group">
-                                <label><?php echo $a['name']; ?></label>
-                                <input type="text" name="attributes[<?php echo $a['id']; ?>]">
+                                <label><?php echo htmlspecialchars($attr['name']); ?></label>
+                                <select name="attribute_values[<?php echo $attr['id']; ?>]" class="attribute-select">
+                                    <option value="">Select <?php echo $attr['name']; ?></option>
+                                    <?php foreach($attr['values'] as $value_id => $value): ?>
+                                        <option value="<?php echo $value_id; ?>"><?php echo htmlspecialchars($value); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
-                        <?php } ?>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <h3><i class="fas fa-warehouse"></i> Stock Management</h3>
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label><i class="fas fa-link"></i> Attribute Combination (Optional)</label>
+                            <input type="text" name="attribute_combination" placeholder="e.g., Red-Large-Cotton" id="autoCombination">
+                            <small style="color: #666;">Leave empty for base product stock. The combination will be auto-generated from selected attributes.</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-cubes"></i> Initial Stock Quantity</label>
+                            <input type="number" name="quantity" min="0" value="0" required>
+                        </div>
                     </div>
                 </div>
 
@@ -638,7 +1075,6 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
     </div>
 </div>
 
-
 <div id="editModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -646,8 +1082,9 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
             <span class="close" onclick="closeEditModal()">&times;</span>
         </div>
         <div class="modal-body">
-            <form method="POST" action="" id="editForm">
+            <form method="POST" action="" enctype="multipart/form-data" id="editForm">
                 <input type="hidden" name="product_id" id="edit_product_id">
+                <input type="hidden" name="existing_image" id="edit_existing_image">
                 
                 <div class="form-grid">
                     <div class="form-group">
@@ -682,14 +1119,28 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
                         </select>
                     </div>
 
-                    <div class="form-group full-width">
-                        <label><i class="fas fa-key"></i> Keywords</label>
-                        <input type="text" name="keywords" id="edit_keywords">
+                    <div class="form-group">
+                        <label><i class="fas fa-image"></i> Main Product Image</label>
+                        <input type="file" name="image" accept="image/*" onchange="previewImage(this, 'editPreview')">
+                        <div id="editPreview"></div>
+                        <div class="current-image" id="edit_current_image"></div>
                     </div>
                     
                     <div class="form-group full-width">
-                        <label><i class="fas fa-image"></i> Image URL</label>
-                        <input type="text" name="image_url" id="edit_image_url">
+                        <label><i class="fas fa-images"></i> Additional Product Images</label>
+                        <div class="additional-images-container">
+                            <div class="image-count" id="editImageCount">No images selected</div>
+                            <div class="additional-images" id="editAdditionalPreview"></div>
+                            <div class="image-inputs-container" id="editImageInputs"></div>
+                            <button type="button" class="add-more-btn" onclick="addMoreImageInput('edit')">
+                                <i class="fas fa-plus"></i> Add More Images
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label><i class="fas fa-key"></i> Keywords</label>
+                        <input type="text" name="keywords" id="edit_keywords">
                     </div>
                     
                     <div class="form-group full-width">
@@ -723,14 +1174,23 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
                 <div class="attributes-section">
                     <h3><i class="fas fa-cogs"></i> Product Attributes</h3>
                     <div class="form-grid" id="edit_attributes">
-                      
+                    </div>
+                  
+                    <h3><i class="fas fa-warehouse"></i> Stock Management</h3>
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label><i class="fas fa-link"></i> Attribute Combination</label>
+                            <input type="text" name="attribute_combination" id="edit_attribute_combination" placeholder="e.g., Red-Large-Cotton">
+                            <small style="color: #666;">Leave empty for base product stock</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label><i class="fas fa-cubes"></i> Stock Quantity</label>
+                            <input type="number" name="quantity" id="edit_quantity" min="0" required>
+                        </div>
+
                     </div>
                 </div>
-                  <label>Attribute Combination (Optional):</label>
-    <input type="text" name="attribute_combination" placeholder="Red-Large">
-
-    <label>Quantity:</label>
-    <input type="number" name="quantity" min="0" required>
 
                 <button type="submit" name="update_product" class="submit-btn">
                     <i class="fas fa-save"></i> Save Changes
@@ -741,40 +1201,266 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
 </div>
 
 <script>
+// Global variables to store selected files
+let addSelectedFiles = [];
+let editSelectedFiles = [];
+
+function previewImage(input, previewId) {
+    const preview = document.getElementById(previewId);
+    preview.innerHTML = '';
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.className = 'image-preview';
+            preview.appendChild(img);
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function addMoreImageInput(formType) {
+    const inputId = formType === 'add' ? 'addImageInputs' : 'editImageInputs';
+    const container = document.getElementById(inputId);
+    
+    const inputIndex = container.children.length;
+    
+    const inputItem = document.createElement('div');
+    inputItem.className = 'image-input-item';
+    inputItem.id = `${formType}_image_input_${inputIndex}`;
+    
+    inputItem.innerHTML = `
+        <input type="file" 
+               name="additional_images[]" 
+               accept="image/*" 
+               class="additional-image-input"
+               onchange="handleImageInput(this, '${formType}', ${inputIndex})">
+        <button type="button" class="remove-input-btn" onclick="removeImageInput('${formType}', ${inputIndex})">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    container.appendChild(inputItem);
+}
+
+function removeImageInput(formType, index) {
+    const inputId = `${formType}_image_input_${index}`;
+    const inputElement = document.getElementById(inputId);
+    
+    if (inputElement) {
+        inputElement.remove();
+        updateImagePreview(formType);
+    }
+}
+
+function handleImageInput(input, formType, index) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            if (formType === 'add') {
+                addSelectedFiles[index] = {
+                    data: e.target.result,
+                    file: file,
+                    name: file.name
+                };
+            } else {
+                editSelectedFiles[index] = {
+                    data: e.target.result,
+                    file: file,
+                    name: file.name
+                };
+            }
+            updateImagePreview(formType);
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function updateImagePreview(formType) {
+    const previewId = formType === 'add' ? 'addAdditionalPreview' : 'editAdditionalPreview';
+    const countId = formType === 'add' ? 'addImageCount' : 'editImageCount';
+    
+    const previewContainer = document.getElementById(previewId);
+    const countElement = document.getElementById(countId);
+    
+    const selectedFiles = formType === 'add' ? addSelectedFiles : editSelectedFiles;
+    const validFiles = selectedFiles.filter(file => file !== undefined);
+    
+    previewContainer.innerHTML = '';
+    
+    validFiles.forEach((file, index) => {
+        const container = document.createElement('div');
+        container.className = 'additional-image-item';
+        
+        const img = document.createElement('img');
+        img.src = file.data;
+        img.className = 'additional-image-preview';
+        img.alt = `Image ${index + 1}`;
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'delete-image-btn';
+        removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+        removeBtn.onclick = function() {
+            if (formType === 'add') {
+                delete addSelectedFiles[index];
+            } else {
+                delete editSelectedFiles[index];
+            }
+            updateImagePreview(formType);
+        };
+        
+        container.appendChild(img);
+        container.appendChild(removeBtn);
+        previewContainer.appendChild(container);
+    });
+    
+    countElement.textContent = `${validFiles.length} image(s) selected`;
+}
+
+function deleteExistingImage(imageId, productId) {
+    if(confirm('Are you sure you want to delete this image?')) {
+        fetch('?delete_image=' + imageId)
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    openEditModal(productId);
+                }
+            });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const attributeSelects = document.querySelectorAll('.attribute-select');
+    
+    attributeSelects.forEach(select => {
+        select.addEventListener('change', updateAttributeCombination);
+    });
+});
+
+function updateAttributeCombination() {
+    const attributeSelects = document.querySelectorAll('.attribute-select');
+    const combinationInput = document.getElementById('autoCombination');
+    let combinationParts = [];
+    
+    attributeSelects.forEach(select => {
+        if(select.value) {
+            combinationParts.push(select.options[select.selectedIndex].text);
+        }
+    });
+    
+    if(combinationParts.length > 0) {
+        combinationInput.value = combinationParts.join('-');
+    } else {
+        combinationInput.value = '';
+    }
+}
 
 function openAddModal() {
+ 
+    addSelectedFiles = [];
+    document.getElementById('addImageInputs').innerHTML = '';
+    document.getElementById('addAdditionalPreview').innerHTML = '';
+    document.getElementById('addImageCount').textContent = 'No images selected';
+
+    addMoreImageInput('add');
+    
     document.getElementById('addModal').style.display = 'block';
 }
 
 function closeAddModal() {
     document.getElementById('addModal').style.display = 'none';
 }
+
 function openEditModal(productId) {
- 
-    fetch('get_product.php?id=' + productId)
+    fetch('?get_product=1&id=' + productId)
         .then(response => response.json())
         .then(data => {
-            document.getElementById('edit_product_id').value = data.id;
-            document.getElementById('edit_name').value = data.name;
-            document.getElementById('edit_price').value = data.price;
-            document.getElementById('edit_manufacturer').value = data.manufacturer_id;
-            document.getElementById('edit_category').value = data.category_id;
-            document.getElementById('edit_keywords').value = data.keywords || '';
-            document.getElementById('edit_image_url').value = data.image_url || '';
-            document.getElementById('edit_short_desc').value = data.short_desc || '';
-            document.getElementById('edit_long_desc').value = data.long_desc || '';
-            document.getElementById('edit_meta_desc').value = data.meta_desc || '';
-            document.getElementById('edit_valid_from').value = data.valid_from || '';
-            document.getElementById('edit_enabled').checked = data.enabled == 1;
+            const product = data.product;
+            const images = data.images;
+            const attributes = data.attributes;
+            const stock = data.stock;
+            const allAttributes = data.all_attributes;
             
-           
+
+            editSelectedFiles = [];
+            document.getElementById('editImageInputs').innerHTML = '';
+            
+            document.getElementById('edit_product_id').value = product.id;
+            document.getElementById('edit_name').value = product.name;
+            document.getElementById('edit_price').value = product.price;
+            document.getElementById('edit_manufacturer').value = product.manufacturer_id;
+            document.getElementById('edit_category').value = product.category_id;
+            document.getElementById('edit_keywords').value = product.keywords || '';
+            document.getElementById('edit_existing_image').value = product.image_url || '';
+            document.getElementById('edit_short_desc').value = product.short_desc || '';
+            document.getElementById('edit_long_desc').value = product.long_desc || '';
+            document.getElementById('edit_meta_desc').value = product.meta_desc || '';
+            document.getElementById('edit_valid_from').value = product.valid_from || '';
+            document.getElementById('edit_enabled').checked = product.enabled == 1;
+            document.getElementById('edit_attribute_combination').value = stock?.attribute_combination || '';
+            document.getElementById('edit_quantity').value = stock?.quantity || 0;
+
+
+            const currentImage = document.getElementById('edit_current_image');
+            if(product.image_url) {
+                currentImage.innerHTML = `
+                    <strong>Current Image:</strong><br>
+                    <img src="${product.image_url}" class="image-preview"><br>
+                    <small>${product.image_url}</small>
+                `;
+            } else {
+                currentImage.innerHTML = '<em>No main image uploaded</em>';
+            }
+       
+            const additionalPreview = document.getElementById('editAdditionalPreview');
+            const imageCount = document.getElementById('editImageCount');
+            additionalPreview.innerHTML = '';
+            
+            if(images && images.length > 0) {
+                imageCount.textContent = `${images.length} existing image(s)`;
+                images.forEach(img => {
+                    const container = document.createElement('div');
+                    container.className = 'additional-image-item';
+                    
+                    const imageElement = document.createElement('img');
+                    imageElement.src = img.image_url;
+                    imageElement.className = 'additional-image-preview';
+                    
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.type = 'button';
+                    deleteBtn.className = 'delete-image-btn';
+                    deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+                    deleteBtn.onclick = function() {
+                        deleteExistingImage(img.id, product.id);
+                    };
+                    
+                    container.appendChild(imageElement);
+                    container.appendChild(deleteBtn);
+                    additionalPreview.appendChild(container);
+                });
+            } else {
+                imageCount.textContent = 'No existing images';
+            }
+   
             let attributesHtml = '';
-            data.all_attributes.forEach(attr => {
-                const value = data.attributes[attr.id] || '';
+            allAttributes.forEach(attr => {
+                const selectedValue = attributes[attr.id] || '';
                 attributesHtml += `
                     <div class="form-group">
                         <label>${attr.name}</label>
-                        <input type="text" name="attributes[${attr.id}]" value="${value}">
+                        <select name="attribute_values[${attr.id}]" class="attribute-select">
+                            <option value="">Select ${attr.name}</option>
+                            ${attr.values.map(value => `
+                                <option value="${value.id}" ${value.value === selectedValue ? 'selected' : ''}>
+                                    ${value.value}
+                                </option>
+                            `).join('')}
+                        </select>
                     </div>
                 `;
             });
@@ -787,11 +1473,13 @@ function openEditModal(productId) {
 function closeEditModal() {
     document.getElementById('editModal').style.display = 'none';
 }
+
 function deleteProduct(productId) {
-    if(confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+    if(confirm('Are you sure you want to delete this product? This will also delete all stock records and images. This action cannot be undone.')) {
         window.location.href = '?delete_id=' + productId;
     }
 }
+
 window.onclick = function(event) {
     const addModal = document.getElementById('addModal');
     const editModal = document.getElementById('editModal');
@@ -802,7 +1490,10 @@ window.onclick = function(event) {
         editModal.style.display = "none";
     }
 }
-</script>
 
+document.addEventListener('DOMContentLoaded', function() {
+    addMoreImageInput('add');
+});
+</script>
 </body>
 </html>
