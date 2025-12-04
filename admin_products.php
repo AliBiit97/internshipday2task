@@ -913,7 +913,7 @@ $products = $conn->query("SELECT p.*, m.name AS manufacturer_name, c.name AS cat
                             <strong><?php echo $p['name']; ?></strong>
                             <span class="stock-badge <?php echo $stock_class; ?>"><?php echo $stock_text; ?></span>
                         </td>
-                        <td><span class="price-tag">$<?php echo number_format($p['price'], 2); ?></span></td>
+                        <td><span class="price-tag"><?php echo number_format($p['price'], 2); ?></span></td>
                         <td><?php echo $p['manufacturer_name']; ?></td>
                         <td><?php echo $p['category_name']; ?></td>
                         <td>

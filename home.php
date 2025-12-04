@@ -18,7 +18,6 @@ if(mysqli_num_rows($banner_query) > 0) {
     }
 }
 
-
 if(empty($banners)) {
     $banners = [
         ['id' => 1, 'title' => 'Welcome to Our Store', 'image_url' => 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=400&fit=crop', 'link' => '#', 'description' => 'Discover amazing products'],
@@ -72,7 +71,81 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
             transition: background-color 0.3s, color 0.3s;
         }
 
-       
+        /* Modal fixes */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex !important;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease-out;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: var(--text-primary);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            line-height: 1;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+
+        .close-btn:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Rest of your CSS remains the same... */
         .banner-section {
             margin: 0 2rem;
             margin-top: 1rem;
@@ -332,66 +405,11 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
             color: var(--text-secondary);
         }
 
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            animation: fadeIn 0.3s;
-        }
-
-        .modal.active {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-content {
-            background-color: var(--card-bg);
-            padding: 2rem;
-            border-radius: 12px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            animation: slideUp 0.3s;
-            box-shadow: 0 8px 16px var(--shadow);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .modal-header h3 {
-            color: var(--text-primary);
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: var(--text-secondary);
-        }
-
-        .close-btn:hover {
-            color: var(--text-primary);
-        }
-
         .setting-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem 0;
+            padding: 1rem 20px;
             border-bottom: 1px solid var(--border-color);
         }
 
@@ -454,15 +472,18 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
         }
 
         .profile-info {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
+            padding: 20px;
         }
 
         .profile-item {
             padding: 1rem;
             background-color: var(--bg-secondary);
             border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .profile-item:last-child {
+            margin-bottom: 0;
         }
 
         .profile-item label {
@@ -479,15 +500,16 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
         }
 
         .logout-btn {
-            width: 100%;
-            padding: 0.75rem;
+            width: calc(100% - 40px);
+            margin: 20px;
+            padding: 12px;
             background-color: #dc3545;
             color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             font-size: 1rem;
-            margin-top: 1rem;
+            font-weight: 500;
             transition: background-color 0.3s;
         }
 
@@ -498,17 +520,6 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
-        }
-
-        @keyframes slideUp {
-            from {
-                transform: translateY(50px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
         }
 
         /* Responsive Design */
@@ -549,6 +560,11 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
             .cards-container {
                 grid-template-columns: 1fr;
             }
+            
+            .modal-content {
+                width: 95%;
+                margin: 10px;
+            }
         }
 
         @media (max-width: 480px) {
@@ -586,13 +602,12 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
     <nav class="navbar">
         <h1>🏠 Dashboard</h1>
         <div class="nav-actions">
-            <button class="icon-btn" onclick="openSettingsModal()" title="Settings">⚙️</button>
-            <button class="icon-btn" onclick="openProfileModal()" title="Profile">👤</button>
-            <button class="login-btn" onclick="window.location.href='login.php'" title="Profile">Login</button>
+            <button class="icon-btn" onclick="openModal('settingsModal')" title="Settings">⚙️</button>
+            <button class="icon-btn" onclick="openModal('profileModal')" title="Profile">👤</button>
+            <button class="login-btn" onclick="window.location.href='logout.php'">Sign-In</button>
         </div>
     </nav>
 
-   
     <div class="banner-section">
         <div class="banner-slider" id="bannerSlider">
             <?php foreach($banners as $index => $banner): ?>
@@ -610,11 +625,9 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
                 </div>
             <?php endforeach; ?>
             
-        
             <button class="banner-nav banner-prev" onclick="prevSlide()">❮</button>
             <button class="banner-nav banner-next" onclick="nextSlide()">❯</button>
             
-          
             <div class="banner-controls">
                 <?php foreach($banners as $index => $banner): ?>
                     <div class="banner-dot <?php echo $index === 0 ? 'active' : ''; ?>" 
@@ -658,20 +671,21 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
         </div>
     </div>
 
+    <!-- Settings Modal -->
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3>⚙️ Settings</h3>
                 <button class="close-btn" onclick="closeModal('settingsModal')">&times;</button>
             </div>
-
+            
             <div class="setting-item">
                 <div class="setting-info">
                     <h4>Dark Theme</h4>
                     <p>Toggle between light and dark mode</p>
                 </div>
                 <label class="toggle-switch">
-                    <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                    <input type="checkbox" id="themeToggle">
                     <span class="slider"></span>
                 </label>
             </div>
@@ -687,10 +701,11 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
                 </label>
             </div>
 
-            <button class="logout-btn" onclick="logout()">Logout</button>
+            <button class="logout-btn" onclick="window.location.href='user_chat.php'">My Account</button>
         </div>
     </div>
 
+    <!-- Profile Modal -->
     <div id="profileModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -723,21 +738,18 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
     </div>
 
     <script>
-        
+        // Banner slider functionality
         let currentSlide = 0;
         const slides = document.querySelectorAll('.banner-slide');
         const dots = document.querySelectorAll('.banner-dot');
         let slideInterval;
 
         function showSlide(n) {
-           
             slides.forEach(slide => slide.classList.remove('active'));
             dots.forEach(dot => dot.classList.remove('active'));
             
-            /
             currentSlide = (n + slides.length) % slides.length;
             
-           
             slides[currentSlide].classList.add('active');
             dots[currentSlide].classList.add('active');
         }
@@ -760,7 +772,7 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
         function startAutoSlide() {
             slideInterval = setInterval(() => {
                 nextSlide();
-            }, 5000); 
+            }, 5000);
         }
 
         function resetInterval() {
@@ -768,63 +780,96 @@ $categories_query = mysqli_query($conn, "SELECT * FROM categories ORDER BY id DE
             startAutoSlide();
         }
 
-      
-        document.addEventListener('DOMContentLoaded', () => {
-            startAutoSlide();
-            
-            
-            const banner = document.querySelector('.banner-slider');
-            banner.addEventListener('mouseenter', () => clearInterval(slideInterval));
-            banner.addEventListener('mouseleave', startAutoSlide);
-        });
-
-        
-        if(localStorage.getItem('theme') === 'dark') {
-            document.body.classList.add('dark-theme');
-            document.getElementById('themeToggle').checked = true;
-        }
-
-        if(localStorage.getItem('notifications') === 'false') {
-            document.getElementById('notificationToggle').checked = false;
-        }
-
-        function openSettingsModal() {
-            document.getElementById('settingsModal').classList.add('active');
-        }
-
-        function openProfileModal() {
-            document.getElementById('profileModal').classList.add('active');
-        }
-
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('active');
-        }
-
-        function toggleTheme() {
-            const isChecked = document.getElementById('themeToggle').checked;
-            if(isChecked) {
-                document.body.classList.add('dark-theme');
-                localStorage.setItem('theme', 'dark');
-            } else {
-                document.body.classList.remove('dark-theme');
-                localStorage.setItem('theme', 'light');
+        // Modal functions
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden'; // Prevent scrolling
             }
         }
 
-        document.getElementById('notificationToggle').addEventListener('change', function() {
-            localStorage.setItem('notifications', this.checked);
-            alert('Notification settings saved!');
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('active');
+                document.body.style.overflow = ''; // Restore scrolling
+            }
+        }
+
+        // Theme toggle
+        function toggleTheme() {
+            const themeToggle = document.getElementById('themeToggle');
+            if (themeToggle) {
+                const isDarkMode = themeToggle.checked;
+                document.body.classList.toggle('dark-theme', isDarkMode);
+                localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+            }
+        }
+
+        // Initialize theme from localStorage
+        document.addEventListener('DOMContentLoaded', () => {
+            // Start banner slider
+            startAutoSlide();
+            
+            // Initialize theme
+            const savedTheme = localStorage.getItem('theme');
+            const themeToggle = document.getElementById('themeToggle');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+                if (themeToggle) themeToggle.checked = true;
+            }
+            
+            // Banner hover pause
+            const banner = document.querySelector('.banner-slider');
+            if (banner) {
+                banner.addEventListener('mouseenter', () => clearInterval(slideInterval));
+                banner.addEventListener('mouseleave', startAutoSlide);
+            }
+            
+            // Theme toggle event
+            if (themeToggle) {
+                themeToggle.addEventListener('change', toggleTheme);
+            }
+            
+            // Notification toggle
+            const notificationToggle = document.getElementById('notificationToggle');
+            if (notificationToggle) {
+                notificationToggle.addEventListener('change', function() {
+                    localStorage.setItem('notifications', this.checked);
+                });
+                
+                // Load saved notification preference
+                const savedNotifications = localStorage.getItem('notifications');
+                if (savedNotifications !== null) {
+                    notificationToggle.checked = savedNotifications === 'true';
+                }
+            }
+            
+            // Close modal when clicking outside
+            window.addEventListener('click', (event) => {
+                const modals = document.querySelectorAll('.modal');
+                modals.forEach(modal => {
+                    if (event.target === modal) {
+                        closeModal(modal.id);
+                    }
+                });
+            });
+            
+            // Close modal with Escape key
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    const modals = document.querySelectorAll('.modal.active');
+                    modals.forEach(modal => {
+                        closeModal(modal.id);
+                    });
+                }
+            });
         });
 
         function logout() {
             if(confirm('Are you sure you want to logout?')) {
                 window.location.href = 'logout.php';
-            }
-        }
-
-        window.onclick = function(event) {
-            if(event.target.classList.contains('modal')) {
-                event.target.classList.remove('active');
             }
         }
     </script>

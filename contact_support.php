@@ -22,14 +22,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_contact'])) {
     }
     
     if (empty($contact_errors)) {
-        // Here you would typically:
-        // 1. Save to database
-        // 2. Send email
-        // 3. etc.
+
         
         $contact_success = "Thank you for your message! We'll get back to you within 24 hours.";
-        
-        // Clear form
+
         $name = $email = $subject = $message = '';
     }
 }
@@ -116,7 +112,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_contact'])) {
             font-size: 1.3em;
         }
 
-        /* Contact Form Styles */
         .form-group {
             margin-bottom: 20px;
         }
@@ -163,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_contact'])) {
             transform: translateY(-2px);
         }
 
-        /* FAQ Styles */
+
         .faq-item {
             margin-bottom: 15px;
             border: 1px solid #e0e0e0;
@@ -205,9 +200,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_contact'])) {
             transform: rotate(45deg);
         }
 
-        /* Contact Methods */
         .contact-methods {
             display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .contact-method-chat{
+              display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
             margin-top: 20px;
@@ -220,8 +220,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_contact'])) {
             border-radius: 10px;
             transition: transform 0.3s;
         }
+        .contact-method-chat {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
 
         .contact-method:hover {
+            transform: translateY(-5px);
+        }
+         .contact-method-chat:hover {
             transform: translateY(-5px);
         }
 
@@ -234,8 +245,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_contact'])) {
             color: #333;
             margin-bottom: 10px;
         }
+         .contact-method-chat h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
 
         .contact-method p {
+            color: #666;
+        }
+         .contact-method-chat p {
             color: #666;
         }
 
@@ -249,7 +267,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_contact'])) {
             text-decoration: underline;
         }
 
-        /* Policy Sections */
         .policy-section {
             margin-bottom: 25px;
         }
@@ -333,7 +350,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_contact'])) {
         </div>
 
         <div class="content-grid">
-            <!-- Contact Form -->
+      
             <div class="card contact-card">
                 <h2>💬 Get In Touch</h2>
                 
@@ -351,7 +368,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_contact'])) {
                     </div>
                 <?php endif; ?>
 
-                <form method="POST">
+                <!-- <form method="POST">
                     <div class="form-group">
                         <label for="name">Full Name *</label>
                         <input type="text" id="name" name="name" value="<?= htmlspecialchars($name ?? '') ?>" required>
@@ -381,7 +398,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_contact'])) {
                     </div>
                     
                     <button type="submit" name="submit_contact" class="submit-btn">Send Message</button>
-                </form>
+                </form> -->
 
                 <div class="contact-methods">
                     <div class="contact-method">
@@ -396,7 +413,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_contact'])) {
                         <p><a href="tel:+11234567890" class="contact-link">051-8374383</a></p>
                     </div>
                     
-                    <div class="contact-method">
+                    <div class="contact-method-chat" onclick="window.location.href='user_chat.php'">
                         <div class="contact-icon">💬</div>
                         <h4>Live Chat</h4>
                         <p>Available 24/7</p>
